@@ -50,7 +50,7 @@ async function commit(operation){if(busy||corrupt)return;busy=true;try{const nex
 function logStandalone(t){$("detail").textContent=t}
 function absorb(s,d,origin,text){const id=s.nextId++,records=s.domains[d][0];records.push({id,domain:d,ordinal:records.length+1,origin,text,createdTick:s.tick,kind:"original"});noteFor(s,"REMEMBER",d,"#"+id+" "+origin)}
 function noteFor(s,type,domain,detail){s.events.push({event:s.events.length+1,tick:s.tick,type,domain,detail})}
-function cycle(s){s.tick++;for(const d of D)for(let l=0;l<2;l++){const src=s.domains[d][l],dst=s.domains[d][l+1];let count=0;for(const r of src){if(dst.some(x=>x.parentLevel===l&&x.parentOrdinal===r.ordinal))continue;dst.push({id:r.id,domain:d,ordinal:dst.length+1,parentLevel:l,parentOrdinal:r.ordinal,createdTick:r.createdTick,kind:"shadow"});count++}noteFor(s,count?"INHERIT":"HOLD",d,"L"+l+" → L"+(l+1)+" "+count)}}
+function cycle(s){s.tick++;for(const d of D)for(let l=0;l<2;l++){const src=s.domains[d][l],dst=s.domains[d][l+1];let count=0;for(const r of src){if(dst.some(x=>x.parentLevel===l&&x.parentOrdinal===r.ordinal))continue;dst.push({id:r.id,domain:d,ordinal:dst.length+1,parentLevel:l,parentOrdinal:r.ordinal,createdTick:r.createdTick,kind:"shadow"});count++}if(count)arrowPulse.set(d+":"+l,performance.now()+1400);noteFor(s,count?"INHERIT":"HOLD",d,"L"+l+" → L"+(l+1)+" "+count)}}
 function rootOf(s,d,l,r){let x=r;while(l>0){x=s.domains[d][l-1][x.parentOrdinal-1];l--}return x}
 function inspect(d,l){selected=[d,l];const v=state.domains[d][l];$("detail").textContent=[d+" / L"+l+" / "+TERMS[l],"token "+TOK[l],"records "+v.length,...v.slice(-7).map(r=>{const root=rootOf(state,d,l,r);return "#"+r.id+" | root ordinal "+root.ordinal+" | "+root.origin+" | "+root.text})].join("\n");draw(performance.now())}
 function render(){const counts=D.flatMap(d=>state.domains[d].map(a=>a.length));$("seq").textContent=state.seq;$("tick").textContent=state.tick;$("total").textContent=D.reduce((n,d)=>n+state.domains[d][0].length,0);$("shadows").textContent=D.reduce((n,d)=>n+state.domains[d][1].length+state.domains[d][2].length,0);$("hash").textContent="SHA-256 "+head.slice(0,22)+"…";$("log").textContent=state.events.slice(-18).map(e=>"t"+e.tick+" "+e.domain+" "+e.type+" "+e.detail).join("\n")||"No observations yet.";const cells=$("cells");cells.replaceChildren();for(const d of D)for(let l=0;l<3;l++){const n=document.createElement("div");n.className="cell";const a=document.createElement("strong");a.textContent=d+" · L"+l;const b=document.createElement("span");b.textContent=TERMS[l];const c=document.createElement("div");c.innerHTML="<b>"+state.domains[d][l].length+"</b> records";const btn=document.createElement("button");btn.textContent="Inspect "+TOK[l];btn.onclick=()=>inspect(d,l);n.append(a,b,c,btn);cells.append(n)}}
@@ -61,7 +61,36 @@ $("verify").onclick=async()=>{try{await load();validate(state);render();$("statu
 $("auto").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("auto").textContent="Start agent";return}timer=setInterval(()=>commit(cycle),2200);$("auto").textContent="Stop agent"};
 $("export").onclick=()=>{const blob=new Blob([localStorage.getItem(KEY)||JSON.stringify({schema:"CUBI90",hash:"GENESIS",state})],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-checkpoint.json";a.click();URL.revokeObjectURL(a.href)};
 $("importFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const cp=JSON.parse(await file.text());if(cp.schema!=="CUBI90"||await digest(canonical(cp.state))!==cp.hash)throw Error("Invalid export digest");validate(cp.state);if(!confirm("Replace local CUBI memory with imported checkpoint?"))return;localStorage.setItem(KEY,JSON.stringify(cp));state=cp.state;head=cp.hash;corrupt=false;render();$("status").textContent="IMPORT VERIFIED"}catch(err){logStandalone("IMPORT HOLD: "+err.message)}};
-const canvas=$("scene"),g=canvas.getContext("2d");let points=[];function draw(now){const w=canvas.width,h=canvas.height;g.clearRect(0,0,w,h);const time=now*.00035;points=[];const space=w/3;for(let x=0;x<3;x++)for(let l=0;l<3;l++){const cx=(x+.5)*space,cy=95+l*(h-135)/3,r=Math.min(49,space*.22),col=COL[l];points.push({x:cx,y:cy,r,d:D[x],l});g.save();g.translate(cx,cy);g.strokeStyle=col;g.shadowColor=col;g.shadowBlur=16;g.lineWidth=1.6;const q=.5+Math.abs(Math.sin(time+x+l))*.4;g.beginPath();g.ellipse(0,0,r*1.32,r*.34,time+x*.6,0,Math.PI*2);g.stroke();g.beginPath();g.ellipse(0,0,r*.44,r*1.28,-time*.8,0,Math.PI*2);g.stroke();const grad=g.createRadialGradient(-r*.25,-r*.3,1,0,0,r);grad.addColorStop(0,"#f4ffff");grad.addColorStop(.12,col);grad.addColorStop(.4,"#143554");grad.addColorStop(1,"#030819");g.fillStyle=grad;g.beginPath();g.arc(0,0,r*q,0,Math.PI*2);g.fill();g.strokeRect(-r*1.25,-r*1.2,r*2.5,r*2.4);g.shadowBlur=0;g.font="bold 13px monospace";g.fillStyle="#e3fbff";g.textAlign="center";g.fillText(TOK[l],0,5);g.fillText(D[x]+" / L"+l,0,r+24);g.restore()}g.textAlign="center";g.font="13px monospace";g.fillStyle="#96b9d2";g.fillText(" . toroid     | BOX     ..||..|     [(([[(())]]))] ",w/2,h-12)}
+const canvas=$("scene"),g=canvas.getContext("2d");let points=[];const arrowPulse=new Map();
+function edgeState(d,l){
+ const src=state.domains[d][l],dst=state.domains[d][l+1];
+ if(!src.length)return "IDLE";
+ const pending=src.some(r=>!dst.some(q=>q.parentLevel===l&&q.parentOrdinal===r.ordinal));
+ if(pending)return "READY";
+ return "SETTLED";
+}
+function arrow(x1,y1,x2,y2,status,t){
+ const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
+ const xA=x1+uy*0+ux*37,yA=y1+uy*37,xB=x2-ux*37,yB=y2-uy*37;
+ const col=status==="ACTIVE"?"#ffffff":status==="READY"?"#ffe078":status==="SETTLED"?"#4ef5ab":"#39546c";
+ g.save();g.strokeStyle=col;g.fillStyle=col;g.lineWidth=status==="ACTIVE"?4:status==="READY"?3:1.6;g.shadowColor=col;g.shadowBlur=status==="IDLE"?0:status==="ACTIVE"?22:10;
+ if(status==="IDLE")g.setLineDash([4,7]);
+ g.beginPath();g.moveTo(xA,yA);g.lineTo(xB,yB);g.stroke();g.setLineDash([]);
+ const angle=Math.atan2(yB-yA,xB-xA);g.beginPath();g.moveTo(xB,yB);g.lineTo(xB-11*Math.cos(angle-.48),yB-11*Math.sin(angle-.48));g.lineTo(xB-11*Math.cos(angle+.48),yB-11*Math.sin(angle+.48));g.closePath();g.fill();
+ if(status==="ACTIVE"||status==="READY"){const p=status==="ACTIVE"?((t*.001)%1):(.45+.16*Math.sin(t*.004));g.beginPath();g.arc(xA+(xB-xA)*p,yA+(yB-yA)*p,4,0,Math.PI*2);g.fill()}
+ g.restore();
+}
+function draw(now){
+ const w=canvas.width,h=canvas.height;g.clearRect(0,0,w,h);points=[];
+ g.fillStyle="#07101b";g.fillRect(0,0,w,h);
+ const xGap=w/3,yGap=(h-80)/3;
+ for(let row=0;row<3;row++){const y=40+row*yGap;g.strokeStyle="#29405a";g.lineWidth=1;g.beginPath();g.moveTo(0,y+yGap*.5);g.lineTo(w,y+yGap*.5);g.stroke();for(let x=0;x<3;x++){g.strokeStyle="#16314a";g.strokeRect(x*xGap+5,y+4,xGap-10,yGap-8)}}
+ for(let x=0;x<3;x++)for(let l=0;l<2;l++){const cx=(x+.5)*xGap,y1=40+(l+.5)*yGap,y2=40+(l+1.5)*yGap,k=D[x]+":"+l;const active=(arrowPulse.get(k)||0)>now;arrow(cx,y1,cx,y2,active?"ACTIVE":edgeState(D[x],l),now)}
+ // Horizontal lanes are inspection-only; never memory copying shortcuts.
+ for(let l=0;l<3;l++)for(let x=0;x<2;x++){const cy=40+(l+.5)*yGap;g.save();g.setLineDash([2,9]);g.strokeStyle="#285d79";g.lineWidth=1;g.beginPath();g.moveTo((x+.5)*xGap+42,cy);g.lineTo((x+1.5)*xGap-42,cy);g.stroke();g.restore()}
+ for(let x=0;x<3;x++)for(let l=0;l<3;l++){const cx=(x+.5)*xGap,cy=40+(l+.5)*yGap,r=Math.min(31,xGap*.19,yGap*.29),col=COL[l];points.push({x:cx,y:cy,r,d:D[x],l});g.save();g.translate(cx,cy);g.strokeStyle=col;g.shadowColor=col;g.shadowBlur=14;g.lineWidth=1.6;g.beginPath();g.ellipse(0,0,r*1.28,r*.45,now*.0004,0,Math.PI*2);g.stroke();g.strokeRect(-r-7,-r-7,(r+7)*2,(r+7)*2);const grad=g.createRadialGradient(-r*.35,-r*.4,1,0,0,r);grad.addColorStop(0,"#fff");grad.addColorStop(.17,col);grad.addColorStop(.75,"#163451");grad.addColorStop(1,"#030814");g.fillStyle=grad;g.beginPath();g.arc(0,0,r,0,Math.PI*2);g.fill();g.shadowBlur=0;g.fillStyle="#fff";g.font="11px monospace";g.textAlign="center";g.fillText(TOK[l],0,4);g.fillText(D[x]+"."+["i","id","sid"][l],0,r+21);g.fillText(String(state.domains[D[x]][l].length),0,-r-13);g.restore()}
+ g.fillStyle="#9eb9d5";g.textAlign="center";g.font="11px monospace";g.fillText("z=0  |  dim=idle  gold=ready  white=active  green=settled",w/2,h-9);
+}
 function resize(){const box=canvas.getBoundingClientRect(),ratio=Math.min(devicePixelRatio||1,2);canvas.width=Math.floor(box.width*ratio);canvas.height=Math.floor(box.height*ratio);g.setTransform(ratio,0,0,ratio,0,0)}function frame(t){resizeIfNeeded();draw(t);requestAnimationFrame(frame)}let prevW=0,prevH=0;function resizeIfNeeded(){const r=canvas.getBoundingClientRect();if(r.width!==prevW||r.height!==prevH){prevW=r.width;prevH=r.height;resize();g.setTransform(1,0,0,1,0,0)}}canvas.onclick=e=>{const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*canvas.width/b.width,y=(e.clientY-b.top)*canvas.height/b.height;let v=points.find(p=>Math.hypot(p.x-x,p.y-y)<p.r*1.5);if(v)inspect(v.d,v.l)};
 try{await load();validate(state);$("status").textContent="LOCAL CHECKPOINT VERIFIED"}catch(e){corrupt=true;$("status").textContent="INTEGRITY HOLD";logStandalone(e.message)}render();requestAnimationFrame(frame);
 </script></body></html>
