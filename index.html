@@ -85,6 +85,15 @@ function conservation094(before,after){
 }
 async function commit(operation){if(busy||corrupt)return;busy=true;try{const next=clone(state);operation(next);validate(next);conservation094(state,next);next.seq=state.seq+1;const hash=await digest(canonical(next));const old=localStorage.getItem(KEY);if(old){const stored=JSON.parse(old);if(stored.hash!==head)throw Error("Checkpoint changed in another tab: reload")};localStorage.setItem(KEY,JSON.stringify({schema:"CUBI90",previous:head,hash,state:next}));state=next;head=hash;$("status").textContent="COMMITTED · VERIFIED";render()}catch(e){$("status").textContent="HOLD · "+e.message;logStandalone("HOLD: "+e.message)}finally{busy=false}}
 function logStandalone(t){$("detail").textContent=t}
+// CUBI 099: explicit observation-to-memory bridge, preserving original payload.
+window.CUBI099={bind:async function(observation,domain){
+ if(!D.includes(domain)||!observation||!Number.isInteger(observation.tick))throw Error("Invalid observation");
+ if(busy||corrupt)throw Error("Memory checkpoint unavailable");
+ const source={LH:"ff",CH:"cf",RH:"rf"}[domain];
+ const text=JSON.stringify({kind:"GapCObservation",tensor:domain,neuronTick:observation.tick,sourceNode:observation.sourceNode,spikes:observation.spikes,A:observation.A,B:observation.B,delta:observation.delta,interpretation:observation.interpretation,unknown:observation.unknown,observation});
+ await commit(s=>{absorb(s,domain,source,text);s.tick++;noteFor(s,"BIND099",domain,"neuron tick "+observation.tick+" node "+observation.sourceNode)});
+ return {domain,neuronTick:observation.tick};
+}};
 function absorb(s,d,origin,text){const id=s.nextId++,records=s.domains[d][0];records.push({id,domain:d,ordinal:records.length+1,origin,text,createdTick:s.tick,kind:"original"});noteFor(s,"REMEMBER",d,"#"+id+" "+origin)}
 function noteFor(s,type,domain,detail){s.events.push({event:s.events.length+1,tick:s.tick,type,domain,detail})}
 function cycle(s){s.tick++;for(const d of D)for(let l=0;l<2;l++){const src=s.domains[d][l],dst=s.domains[d][l+1];let count=0;for(const r of src){if(dst.some(x=>x.parentLevel===l&&x.parentOrdinal===r.ordinal))continue;dst.push({id:r.id,domain:d,ordinal:dst.length+1,parentLevel:l,parentOrdinal:r.ordinal,createdTick:r.createdTick,kind:"shadow"});count++}if(count)arrowPulse.set(d+":"+l,performance.now()+1400);noteFor(s,count?"INHERIT":"HOLD",d,"L"+l+" → L"+(l+1)+" "+count)}}
