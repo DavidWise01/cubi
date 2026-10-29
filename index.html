@@ -20,7 +20,7 @@ main{display:grid;grid-template-columns:310px minmax(0,1fr) 290px;gap:14px;paddi
 <main>
 <section class="stack">
 <div class="panel"><h2>OBSERVE → REMEMBER</h2><label for="domain">Memory compartment</label><select id="domain"><option>LH</option><option selected>CH</option><option>RH</option></select><label for="source">Observe & report origin</label><select id="source"><option>ff</option><option>fr</option><option selected>cf</option><option>cr</option><option>rf</option><option>rr</option></select><label for="content">Memory observation</label><textarea id="content" placeholder="Enter an observation to preserve..."></textarea><div class="controls"><button id="remember">Remember</button><button id="recall">Recall latest</button></div></div>
-<div class="panel"><h2>AGENT · CORTEX {{i}}</h2><div class="controls"><button id="cycle">One cycle</button><button id="auto">Start agent</button></div><small>Independent deterministic consolidation of L0→L1→L2. Original content stays at L0. A browser tab must remain active for periodic cycles.</small><div style="height:10px"></div><div class="controls"><button id="verify">Verify checkpoint</button><button id="export">Export JSON</button></div><label for="importFile">Import a verified export</label><input type="file" id="importFile" accept="application/json"></div>
+<div class="panel"><h2>AGENT · CORTEX {{i}}</h2><div class="controls"><button id="cycle">One cycle</button><button id="auto">Start agent</button></div><small>Independent deterministic consolidation of L0→L1→L2. Original content stays at L0. A browser tab must remain active for periodic cycles.</small><div style="height:10px"></div><div class="controls"><button id="verify">Verify checkpoint</button><button id="conserve094">Audit conservation</button><button id="export">Export JSON</button></div><label for="importFile">Import a verified export</label><input type="file" id="importFile" accept="application/json"></div>
 <div class="panel"><h2>OPERATOR AXES</h2><pre>T   tensor dimensions
 {}  bind identity & provenance
 []  BOX · immutable address
@@ -46,7 +46,31 @@ let state=genesis(),head="GENESIS",timer=null,selected=["CH",0],busy=false,corru
 function validate(s){if(s.version!==90||!D.every(d=>Array.isArray(s.domains?.[d])&&s.domains[d].length===3))throw Error("Schema invalid");for(const d of D){const tiers=s.domains[d];for(let l=0;l<3;l++)tiers[l].forEach((r,i)=>{if(r.ordinal!==i+1||r.domain!==d||!Number.isInteger(r.id)||r.id<1)throw Error("Broken record identity "+d);if(l===0){if(r.kind!=="original"||typeof r.text!=="string")throw Error("Root invalid")}else{if(r.kind!=="shadow"||r.parentLevel!==l-1)throw Error("Shadow invalid");const p=tiers[l-1][r.parentOrdinal-1];if(!p||p.id!==r.id)throw Error("Broken shadow lineage "+d)}})}return true}
 async function load(){const raw=localStorage.getItem(KEY);if(!raw)return;const cp=JSON.parse(raw);if(cp.schema!=="CUBI90"||await digest(canonical(cp.state))!==cp.hash)throw Error("Checkpoint digest mismatch");validate(cp.state);state=cp.state;head=cp.hash}
 function note(type,domain,detail){state.events.push({event:state.events.length+1,tick:state.tick,type,domain,detail});if(state.events.length>2000)throw Error("Event capacity reached: export and archive before continuing")}
-async function commit(operation){if(busy||corrupt)return;busy=true;try{const next=clone(state);operation(next);validate(next);next.seq=state.seq+1;const hash=await digest(canonical(next));const old=localStorage.getItem(KEY);if(old){const stored=JSON.parse(old);if(stored.hash!==head)throw Error("Checkpoint changed in another tab: reload")};localStorage.setItem(KEY,JSON.stringify({schema:"CUBI90",previous:head,hash,state:next}));state=next;head=hash;$("status").textContent="COMMITTED · VERIFIED";render()}catch(e){$("status").textContent="HOLD · "+e.message;logStandalone("HOLD: "+e.message)}finally{busy=false}}
+function conservation094(before,after){
+ const report=[];let originals=0,shadows=0;
+ for(const d of D){
+  const prev=before.domains[d],next=after.domains[d];
+  for(let l=0;l<3;l++){
+   const a=prev[l],b=next[l];
+   if(b.length<a.length)throw Error("CONSERVATION: records removed "+d+" L"+l);
+   for(let i=0;i<a.length;i++)if(JSON.stringify(a[i])!==JSON.stringify(b[i]))throw Error("CONSERVATION: historical record changed "+d+" L"+l+" #"+(i+1));
+   const pairs=new Set();
+   for(const rec of b){
+    if(l===0){if(rec.kind!=="original")throw Error("CONSERVATION: invalid root");continue}
+    const key=rec.parentLevel+":"+rec.parentOrdinal;
+    if(pairs.has(key))throw Error("CONSERVATION: duplicated shadow "+d+" L"+l);
+    pairs.add(key);
+    if(rec.domain!==d||rec.parentLevel!==l-1)throw Error("CONSERVATION: wrong compartment");
+    const p=next[l-1][rec.parentOrdinal-1];
+    if(!p||p.id!==rec.id)throw Error("CONSERVATION: orphaned shadow "+d+" L"+l);
+   }
+  }
+  originals+=next[0].length;shadows+=next[1].length+next[2].length;
+  report.push({domain:d,originals:next[0].length,medium:next[1].length,long:next[2].length});
+ }
+ return {status:"PASS",originals,shadows,report};
+}
+async function commit(operation){if(busy||corrupt)return;busy=true;try{const next=clone(state);operation(next);validate(next);conservation094(state,next);next.seq=state.seq+1;const hash=await digest(canonical(next));const old=localStorage.getItem(KEY);if(old){const stored=JSON.parse(old);if(stored.hash!==head)throw Error("Checkpoint changed in another tab: reload")};localStorage.setItem(KEY,JSON.stringify({schema:"CUBI90",previous:head,hash,state:next}));state=next;head=hash;$("status").textContent="COMMITTED · VERIFIED";render()}catch(e){$("status").textContent="HOLD · "+e.message;logStandalone("HOLD: "+e.message)}finally{busy=false}}
 function logStandalone(t){$("detail").textContent=t}
 function absorb(s,d,origin,text){const id=s.nextId++,records=s.domains[d][0];records.push({id,domain:d,ordinal:records.length+1,origin,text,createdTick:s.tick,kind:"original"});noteFor(s,"REMEMBER",d,"#"+id+" "+origin)}
 function noteFor(s,type,domain,detail){s.events.push({event:s.events.length+1,tick:s.tick,type,domain,detail})}
@@ -57,6 +81,7 @@ function render(){const counts=D.flatMap(d=>state.domains[d].map(a=>a.length));$
 $("remember").onclick=()=>{const d=$("domain").value,text=$("content").value.trim(),origin=$("source").value;if(!text)return logStandalone("HOLD: Observation required");if(!({LH:["ff","fr"],CH:["cf","cr"],RH:["rf","rr"]})[d].includes(origin))return logStandalone("HOLD: Origin does not belong to selected compartment");commit(s=>{absorb(s,d,origin,text);s.tick++}).then(()=>{$("content").value=""})};
 $("cycle").onclick=()=>commit(cycle);
 $("recall").onclick=()=>{const d=$("domain").value;for(let l=2;l>=0;l--){const r=state.domains[d][l].at(-1);if(r){const root=rootOf(state,d,l,r);return commit(s=>noteFor(s,"RECALL",d,"#"+r.id+" L"+l)).then(()=>{$("detail").textContent=d+" / #"+r.id+"\n"+root.text})}}logStandalone("HOLD: no memory in "+d)};
+$("conserve094").onclick=()=>{try{$("detail").textContent=JSON.stringify(conservation094(state,state),null,2);$("status").textContent="CONSERVATION VERIFIED"}catch(e){$("status").textContent="CONSERVATION HOLD";$("detail").textContent=e.message}};
 $("verify").onclick=async()=>{try{await load();validate(state);render();$("status").textContent="VERIFIED LOCAL CHECKPOINT"}catch(e){corrupt=true;$("status").textContent="INTEGRITY HOLD";logStandalone(e.message)}};
 $("auto").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("auto").textContent="Start agent";return}timer=setInterval(()=>commit(cycle),2200);$("auto").textContent="Stop agent"};
 $("export").onclick=()=>{const blob=new Blob([localStorage.getItem(KEY)||JSON.stringify({schema:"CUBI90",hash:"GENESIS",state})],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-checkpoint.json";a.click();URL.revokeObjectURL(a.href)};
