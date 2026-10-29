@@ -55,6 +55,7 @@ function recoveryState103(){
  if(last?.kind==="RECOVERY_RESTORED")return null;
  return last?.payload??null;
 }
+if(chain103.length)tick=Math.max(tick,chain103.at(-1).modelTick+1);
 const restored103=recoveryState103();
 if(restored103){recovery102=restored103.recovery;trial101=restored103.trial;document.getElementById("gapA").value=restored103.appliedA;document.getElementById("gapB").value=restored103.appliedB;}
 const v=new Float32Array(NUM),next=new Float32Array(NUM),spikes=new Uint32Array(9),fired=new Uint8Array(NUM);
