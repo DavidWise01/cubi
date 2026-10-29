@@ -62,6 +62,15 @@ $("auto").onclick=()=>{if(timer){clearInterval(timer);timer=null;$("auto").textC
 $("export").onclick=()=>{const blob=new Blob([localStorage.getItem(KEY)||JSON.stringify({schema:"CUBI90",hash:"GENESIS",state})],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-checkpoint.json";a.click();URL.revokeObjectURL(a.href)};
 $("importFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const cp=JSON.parse(await file.text());if(cp.schema!=="CUBI90"||await digest(canonical(cp.state))!==cp.hash)throw Error("Invalid export digest");validate(cp.state);if(!confirm("Replace local CUBI memory with imported checkpoint?"))return;localStorage.setItem(KEY,JSON.stringify(cp));state=cp.state;head=cp.hash;corrupt=false;render();$("status").textContent="IMPORT VERIFIED"}catch(err){logStandalone("IMPORT HOLD: "+err.message)}};
 const canvas=$("scene"),g=canvas.getContext("2d");let points=[];const arrowPulse=new Map();
+function edgeMetrics093(d,l){
+ const src=state.domains[d][l],dst=state.domains[d][l+1];
+ const pending=src.filter(r=>!dst.some(q=>q.parentLevel===l&&q.parentOrdinal===r.ordinal)).length;
+ const derived=dst.filter(q=>q.kind==="shadow"&&q.parentLevel===l);
+ const last=state.events.filter(e=>e.domain===d&&e.type==="INHERIT"&&e.detail.startsWith("L"+l+" → L"+(l+1)+" ")).at(-1)?.tick??null;
+ let broken=0;
+ for(const q of derived){const parent=src[q.parentOrdinal-1];if(!parent||parent.id!==q.id||q.domain!==d||q.ordinal<1)broken++}
+ return {pending,derived:derived.length,lastTick:last,integrity:broken?"BROKEN":"OK"};
+}
 function edgeState(d,l){
  const src=state.domains[d][l],dst=state.domains[d][l+1];
  if(!src.length)return "IDLE";
@@ -72,7 +81,7 @@ function edgeState(d,l){
 function arrow(x1,y1,x2,y2,status,t){
  const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy),ux=dx/len,uy=dy/len;
  const xA=x1+uy*0+ux*37,yA=y1+uy*37,xB=x2-ux*37,yB=y2-uy*37;
- const col=status==="ACTIVE"?"#ffffff":status==="READY"?"#ffe078":status==="SETTLED"?"#4ef5ab":"#39546c";
+ const col=status==="BROKEN"?"#ff647b":status==="ACTIVE"?"#ffffff":status==="READY"?"#ffe078":status==="SETTLED"?"#4ef5ab":"#39546c";
  g.save();g.strokeStyle=col;g.fillStyle=col;g.lineWidth=status==="ACTIVE"?4:status==="READY"?3:1.6;g.shadowColor=col;g.shadowBlur=status==="IDLE"?0:status==="ACTIVE"?22:10;
  if(status==="IDLE")g.setLineDash([4,7]);
  g.beginPath();g.moveTo(xA,yA);g.lineTo(xB,yB);g.stroke();g.setLineDash([]);
@@ -85,11 +94,11 @@ function draw(now){
  g.fillStyle="#07101b";g.fillRect(0,0,w,h);
  const xGap=w/3,yGap=(h-80)/3;
  for(let row=0;row<3;row++){const y=40+row*yGap;g.strokeStyle="#29405a";g.lineWidth=1;g.beginPath();g.moveTo(0,y+yGap*.5);g.lineTo(w,y+yGap*.5);g.stroke();for(let x=0;x<3;x++){g.strokeStyle="#16314a";g.strokeRect(x*xGap+5,y+4,xGap-10,yGap-8)}}
- for(let x=0;x<3;x++)for(let l=0;l<2;l++){const cx=(x+.5)*xGap,y1=40+(l+.5)*yGap,y2=40+(l+1.5)*yGap,k=D[x]+":"+l;const active=(arrowPulse.get(k)||0)>now;arrow(cx,y1,cx,y2,active?"ACTIVE":edgeState(D[x],l),now)}
+ for(let x=0;x<3;x++)for(let l=0;l<2;l++){const cx=(x+.5)*xGap,y1=40+(l+.5)*yGap,y2=40+(l+1.5)*yGap,k=D[x]+":"+l;const active=(arrowPulse.get(k)||0)>now;{const metrics=edgeMetrics093(D[x],l);arrow(cx,y1,cx,y2,metrics.integrity==="BROKEN"?"BROKEN":active?"ACTIVE":edgeState(D[x],l),now);g.save();g.textAlign="left";g.font="10px monospace";g.fillStyle=metrics.integrity==="BROKEN"?"#ff647b":"#c2d8e8";g.fillText("P:"+metrics.pending+"  t:"+(metrics.lastTick??"—"),cx+13,(y1+y2)/2);g.restore()}}
  // Horizontal lanes are inspection-only; never memory copying shortcuts.
  for(let l=0;l<3;l++)for(let x=0;x<2;x++){const cy=40+(l+.5)*yGap;g.save();g.setLineDash([2,9]);g.strokeStyle="#285d79";g.lineWidth=1;g.beginPath();g.moveTo((x+.5)*xGap+42,cy);g.lineTo((x+1.5)*xGap-42,cy);g.stroke();g.restore()}
  for(let x=0;x<3;x++)for(let l=0;l<3;l++){const cx=(x+.5)*xGap,cy=40+(l+.5)*yGap,r=Math.min(31,xGap*.19,yGap*.29),col=COL[l];points.push({x:cx,y:cy,r,d:D[x],l});g.save();g.translate(cx,cy);g.strokeStyle=col;g.shadowColor=col;g.shadowBlur=14;g.lineWidth=1.6;g.beginPath();g.ellipse(0,0,r*1.28,r*.45,now*.0004,0,Math.PI*2);g.stroke();g.strokeRect(-r-7,-r-7,(r+7)*2,(r+7)*2);const grad=g.createRadialGradient(-r*.35,-r*.4,1,0,0,r);grad.addColorStop(0,"#fff");grad.addColorStop(.17,col);grad.addColorStop(.75,"#163451");grad.addColorStop(1,"#030814");g.fillStyle=grad;g.beginPath();g.arc(0,0,r,0,Math.PI*2);g.fill();g.shadowBlur=0;g.fillStyle="#fff";g.font="11px monospace";g.textAlign="center";g.fillText(TOK[l],0,4);g.fillText(D[x]+"."+["i","id","sid"][l],0,r+21);g.fillText(String(state.domains[D[x]][l].length),0,-r-13);g.restore()}
- g.fillStyle="#9eb9d5";g.textAlign="center";g.font="11px monospace";g.fillText("z=0  |  dim=idle  gold=ready  white=active  green=settled",w/2,h-9);
+ g.fillStyle="#9eb9d5";g.textAlign="center";g.font="11px monospace";g.fillText("z=0 | P=pending | t=last promoted | red=lineage broken",w/2,h-9);
 }
 function resize(){const box=canvas.getBoundingClientRect(),ratio=Math.min(devicePixelRatio||1,2);canvas.width=Math.floor(box.width*ratio);canvas.height=Math.floor(box.height*ratio);g.setTransform(ratio,0,0,ratio,0,0)}function frame(t){resizeIfNeeded();draw(t);requestAnimationFrame(frame)}let prevW=0,prevH=0;function resizeIfNeeded(){const r=canvas.getBoundingClientRect();if(r.width!==prevW||r.height!==prevH){prevW=r.width;prevH=r.height;resize();g.setTransform(1,0,0,1,0,0)}}canvas.onclick=e=>{const b=canvas.getBoundingClientRect(),x=(e.clientX-b.left)*canvas.width/b.width,y=(e.clientY-b.top)*canvas.height/b.height;let v=points.find(p=>Math.hypot(p.x-x,p.y-y)<p.r*1.5);if(v)inspect(v.d,v.l)};
 try{await load();validate(state);$("status").textContent="LOCAL CHECKPOINT VERIFIED"}catch(e){corrupt=true;$("status").textContent="INTEGRITY HOLD";logStandalone(e.message)}render();requestAnimationFrame(frame);
