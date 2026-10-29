@@ -86,6 +86,7 @@ function conservation094(before,after){
 async function commit(operation){if(busy||corrupt)return;busy=true;try{const next=clone(state);operation(next);validate(next);conservation094(state,next);next.seq=state.seq+1;const hash=await digest(canonical(next));const old=localStorage.getItem(KEY);if(old){const stored=JSON.parse(old);if(stored.hash!==head)throw Error("Checkpoint changed in another tab: reload")};localStorage.setItem(KEY,JSON.stringify({schema:"CUBI90",previous:head,hash,state:next}));state=next;head=hash;$("status").textContent="COMMITTED · VERIFIED";render()}catch(e){$("status").textContent="HOLD · "+e.message;logStandalone("HOLD: "+e.message)}finally{busy=false}}
 function logStandalone(t){$("detail").textContent=t}
 // CUBI 099: explicit observation-to-memory bridge, preserving original payload.
+window.CUBI100={latest:function(){const roots=state.domains.CH[0].filter(r=>{try{return JSON.parse(r.text).kind==="GapCObservation"}catch{return false}});if(!roots.length)return null;const r=roots.at(-1);return {memoryId:r.id,observation:JSON.parse(r.text).observation}}};
 window.CUBI099={bind:async function(observation,domain){
  if(!D.includes(domain)||!observation||!Number.isInteger(observation.tick))throw Error("Invalid observation");
  if(busy||corrupt)throw Error("Memory checkpoint unavailable");
