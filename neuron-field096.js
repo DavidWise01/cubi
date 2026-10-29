@@ -1,7 +1,7 @@
 // CUBI 096 · 9 tensor × (5 layers × 5 × 5) active representative neurons.
 (()=>{"use strict";
 const host=document.getElementById("neuron096");if(!host)return;
-host.innerHTML='<h2>ACTIVE CORTEX · {{5×5}}^5</h2><div class="controls"><button id="neuronRun">Pause neural field</button><button id="neuronPulse">Stimulate Gap A</button><button id="neuronReset">Reset field</button></div><label>Gap A excitation <input id="gapA" type="range" min="0" max="100" value="40"></label><label>Gap B inhibition <input id="gapB" type="range" min="0" max="100" value="25"></label><label>Gap C why observer · 0.2 nm symbolic reference <input id="gapC" type="range" min="0" max="100" value="50"></label><canvas id="neuronFloor" style="width:100%;height:530px;background:#050d1a;border:1px solid #2d536b;border-radius:12px;display:block"></canvas><pre id="neuronStatus">Initializing neurons</pre><div class="controls"><button id="whyExport098">Export WHY history</button><button id="whyClear098">Reset WHY history</button><button id="bind099">Bind latest to memory</button><button id="compare100">Compare recalled WHY</button><button id="apply100">Apply bounded adjustment</button><button id="stability101">Audit stability</button><button id="restore102">Restore prior A/B</button><button id="audit103">Audit C1/C2/C3</button><button id="export103">Export diodic ledger</button></div><pre id="whyHistory098">WHY history empty</pre><small>125 active neurons per tensor: 5 recursive slices of 5×5. Full 25^5 address tree is represented symbolically, not densely simulated. Gap A/B are modeled excitation/inhibition channels, not biological gap junction measurements.</small>';
+host.innerHTML='<h2>ACTIVE CORTEX · {{5×5}}^5</h2><div class="controls"><button id="neuronRun">Pause neural field</button><button id="neuronPulse">Stimulate Gap A</button><button id="neuronReset">Reset field</button></div><label>Gap A excitation <input id="gapA" type="range" min="0" max="100" value="40"></label><label>Gap B inhibition <input id="gapB" type="range" min="0" max="100" value="25"></label><label>Gap C why observer · 0.2 nm symbolic reference <input id="gapC" type="range" min="0" max="100" value="50"></label><canvas id="neuronFloor" style="width:100%;height:530px;background:#050d1a;border:1px solid #2d536b;border-radius:12px;display:block"></canvas><pre id="neuronStatus">Initializing neurons</pre><div class="controls"><button id="whyExport098">Export WHY history</button><button id="whyClear098">Reset WHY history</button><button id="bind099">Bind latest to memory</button><button id="compare100">Compare recalled WHY</button><button id="apply100">Apply bounded adjustment</button><button id="stability101">Audit stability</button><button id="restore102">Restore prior A/B</button><button id="audit103">Audit C1/C2/C3</button><button id="export103">Export diodic ledger</button><button id="floor104">Audit floor ceiling</button></div><pre id="whyHistory098">WHY history empty</pre><small>125 active neurons per tensor: 5 recursive slices of 5×5. Full 25^5 address tree is represented symbolically, not densely simulated. Gap A/B are modeled excitation/inhibition channels, not biological gap junction measurements.</small>';
 const canvas=document.getElementById("neuronFloor"),ctx=canvas.getContext("2d"),stats=document.getElementById("neuronStatus");
 const D=["LH","CH","RH"],L=["i","id","sid"],COUNT=125,NUM=1125;let running=true,impulse=0,tick=0;const WHY_SCALE_NM=0.2,WHY_ADDRESS="{{inf!xinf!}}^{{inf!}}";let why={A:0,B:0,delta:0,reason:"INITIAL"};
 let proposal100=null,trial101=null,recovery102=null;
@@ -48,7 +48,7 @@ function append103(kind,payload){
  if(chainFault103)throw Error("DIODIC HOLD: "+chainFault103);
  const seq=chain103.length+1,record={seq,parent:seq-1,phase:C103_PHASES[(seq-1)%10],kind,modelTick:tick,payload:JSON.parse(JSON.stringify(payload))};
  // Append and persist the entire unchanged prefix; never rotate or discard this journal.
- const extended=chain103.concat([record]);localStorage.setItem(C103_KEY,JSON.stringify(extended));chain103=extended;return record;
+ witness104("C_"+kind,{phase:record.phase,seq:record.seq});const extended=chain103.concat([record]);localStorage.setItem(C103_KEY,JSON.stringify(extended));chain103=extended;return record;
 }
 function recoveryState103(){
  const last=[...chain103].reverse().find(x=>x.kind==="RECOVERY_SAVED"||x.kind==="RECOVERY_RESTORED");
@@ -58,6 +58,19 @@ function recoveryState103(){
 if(chain103.length)tick=Math.max(tick,chain103.at(-1).modelTick+1);
 const restored103=recoveryState103();
 if(restored103){recovery102=restored103.recovery;trial101=restored103.trial;document.getElementById("gapA").value=restored103.appliedA;document.getElementById("gapB").value=restored103.appliedB;}
+
+// CUBI 104 — global diodic ceiling: symbolic layer-one boundary, not a physical length.
+const FLOOR104={expression:"{{n}}^{{n}}x1.61658^10",base:1.61658,exponent:10,plane:1,scalar:0,mode:"upper-ceiling-of-layer-1"};
+const FLOOR104_KEY="cubi.diodic104.events.v1";
+let floor104=[];let floor104Fault=null;
+try{const prior=JSON.parse(localStorage.getItem(FLOOR104_KEY)||"[]");if(!Array.isArray(prior))throw Error("invalid global journal");
+ floor104=prior;for(let i=0;i<prior.length;i++)if(prior[i].seq!==i+1||prior[i].parent!==i||prior[i].floor!==FLOOR104.expression)throw Error("global sequence fault "+i);
+}catch(e){floor104Fault=e.message}
+function witness104(type,data){
+ if(floor104Fault)throw Error("GLOBAL DIODIC HOLD: "+floor104Fault);
+ const event={seq:floor104.length+1,parent:floor104.length,floor:FLOOR104.expression,phase:C103_PHASES[floor104.length%10],type,tick,payload:JSON.parse(JSON.stringify(data))};
+ localStorage.setItem(FLOOR104_KEY,JSON.stringify([...floor104,event]));floor104.push(event);return event;
+}
 const v=new Float32Array(NUM),next=new Float32Array(NUM),spikes=new Uint32Array(9),fired=new Uint8Array(NUM);
 for(let n=0;n<NUM;n++)v[n]=Math.sin(n*12.9898)*.09;
 const idx=(node,z,x,y)=>node*COUNT+z*25+y*5+x;
@@ -84,7 +97,8 @@ ctx.globalAlpha=1;ctx.strokeStyle="#57bed55c";ctx.beginPath();ctx.ellipse(cx,cy,
 stats.textContent="GAP C WHY ["+why.reason+"] 0.2 nm reference | "+WHY_ADDRESS+" symbolic | A contribution "+why.A.toFixed(5)+" | B contribution "+why.B.toFixed(5)+" | Δ "+why.delta.toFixed(5)+" | observation weight "+why.confidence+"\nACTIVE MODEL | tick "+tick+" | 9 tensor × 125 active = "+NUM+" simulated neurons | symbolic full address capacity: 9 × 25^5 = 87,890,625 | Gap A="+document.getElementById("gapA").value+"% Gap B="+document.getElementById("gapB").value+"% | total spikes "+spikes.reduce((a,b)=>a+b,0);}
 let then=0;function frame(now){if(running&&now-then>30){step();then=now}render();requestAnimationFrame(frame)}requestAnimationFrame(frame);
 document.getElementById("neuronRun").onclick=e=>{running=!running;e.target.textContent=running?"Pause neural field":"Resume neural field"};
-document.getElementById("neuronPulse").onclick=()=>{impulse=7};
+document.getElementById("neuronPulse").onclick=()=>{try{witness104("STIMULUS",{neuron:"CH.id",durationTicks:7});impulse=7}catch(e){document.getElementById("whyHistory098").textContent=e.message}};
+document.getElementById("floor104").onclick=()=>{document.getElementById("whyHistory098").textContent=JSON.stringify({floor:FLOOR104,events:floor104.length,nextPhase:C103_PHASES[floor104.length%10],fault:floor104Fault||"NONE"},null,2)};
 document.getElementById("audit103").onclick=()=>{document.getElementById("whyHistory098").textContent=chainFault103?"DIODIC HOLD "+chainFault103:"CUBI 103 journal "+chain103.length+" entries\nNEXT "+C103_PHASES[chain103.length%10]+"\n"+chain103.slice(-10).map(x=>x.seq+" "+x.phase+" "+x.kind+" tick "+x.modelTick).join("\n")};
 document.getElementById("export103").onclick=()=>{const blob=new Blob([JSON.stringify({schema:"CUBI103",sequence:C103_PHASES,events:chain103},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-diodic-c-journal.json";a.click();URL.revokeObjectURL(a.href)};
 document.getElementById("restore102").onclick=()=>{
@@ -101,5 +115,5 @@ document.getElementById("apply100").onclick=()=>{if(!proposal100){document.getEl
 document.getElementById("bind099").onclick=async()=>{const r=whyHistory.at(-1);if(!r){document.getElementById("whyHistory098").textContent="HOLD: no observation";return}try{if(!window.CUBI099)throw Error("Memory binding unavailable");await window.CUBI099.bind(r,"CH");document.getElementById("whyHistory098").textContent="Bound original neuron tick "+r.tick+" to CH.L0; agent cycle may inherit it."}catch(e){document.getElementById("whyHistory098").textContent="BIND HOLD: "+e.message}};
 document.getElementById("whyExport098").onclick=()=>{const blob=new Blob([JSON.stringify({schema:"CUBI098",observations:whyHistory},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-gapc-why-history.json";a.click();URL.revokeObjectURL(a.href)};
 document.getElementById("whyClear098").onclick=()=>{if(!confirm("Clear only the local WHY history? Original tensor memories are unaffected."))return;whyHistory=[];lastObservation=-1;localStorage.removeItem(WHY_KEY);document.getElementById("whyHistory098").textContent="WHY history cleared"};
-document.getElementById("neuronReset").onclick=()=>{v.fill(0);next.fill(0);fired.fill(0);spikes.fill(0);impulse=0;tick=0};
+document.getElementById("neuronReset").onclick=()=>{try{witness104("RESET",{reason:"user requested reset",priorTick:tick})}catch(e){document.getElementById("whyHistory098").textContent=e.message;return}v.fill(0);next.fill(0);fired.fill(0);spikes.fill(0);impulse=0;tick=0};
 })();
