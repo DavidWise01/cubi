@@ -76,6 +76,7 @@ function witness104(type,data){
 const DIST105={base:"1.161658",powerBands:[4,8,10],offsetBands:[3,6,9],strideBands:[12,24,36],rule:"1 every 4",raw:"[1.161658x10^-[4/8/10]-(3/6/9)-{12 , 24 , 36}"};
 function register105(col,row){return {tensor:D[col]+"."+L[row],column:col,row,scalar:0,base:DIST105.base,exponent:DIST105.powerBands[row],offset:DIST105.offsetBands[col],stride:DIST105.strideBands[row],expression:"1.161658×10^(-"+DIST105.powerBands[row]+") - "+DIST105.offsetBands[col]+" - {"+DIST105.strideBands[row]+"}",interpretation:"symbolic address, not calibrated distance"}}
 function renderSpacing105(){document.getElementById("distance105").textContent="SCALAR ZERO / NINE DISTANCE REGISTERS\n"+DIST105.raw+"\n"+Array.from({length:3},(_,row)=>Array.from({length:3},(_,col)=>register105(col,row).tensor+": "+register105(col,row).expression).join(" | ")).join("\n")+"\nBand indexing only. No numerical length-unit assumptions."}
+window.CUBI106_SOURCE=()=>({tick,delta:why.delta,A:why.A,B:why.B,spikes:Array.from(spikes)});
 const v=new Float32Array(NUM),next=new Float32Array(NUM),spikes=new Uint32Array(9),fired=new Uint8Array(NUM);
 for(let n=0;n<NUM;n++)v[n]=Math.sin(n*12.9898)*.09;
 const idx=(node,z,x,y)=>node*COUNT+z*25+y*5+x;
