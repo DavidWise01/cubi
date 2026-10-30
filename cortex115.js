@@ -1,7 +1,7 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexAgent120">Pause cortex agent</button><button id="cortexAgentAudit120">Agent novelty audit</button><button id="cortexLocal121">Inspect local observer</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexAgent120">Pause cortex agent</button><button id="cortexAgentAudit120">Agent novelty audit</button><button id="cortexLocal121">Inspect local observer</button><button id="cortexTrace123">Trace causal lineage</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
 function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"});if(!r.result.objectStoreNames.contains("self121"))r.result.createObjectStore("self121",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
@@ -143,6 +143,36 @@ document.getElementById("cortexAgent120").onclick=()=>{AGENT120.active=!AGENT120
 document.getElementById("cortexAgentAudit120").onclick=()=>show({...AGENT120,thresholds:NOVELTY120,meaning:"Model-only novelty; observations preserved, no voting"});
 async function cycle120(){await agent120();setTimeout(cycle120,1500)}
 setTimeout(cycle120,1500);
+// CUBI 123: read-only causal path audit. Missing parents are faults, never guessed.
+async function causal123(){
+ const d=await db();
+ const records=await new Promise((resolve,reject)=>{
+  const tx=d.transaction(["cortex","inheritance117","self121"],"readonly");
+  const names=["cortex","inheritance117","self121"],result={};
+  for(const name of names){const r=tx.objectStore(name).getAll();r.onsuccess=()=>{result[name]=r.result}}
+  tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);
+ });
+ const roots=new Map(records.cortex.map(x=>[x.id,x]));
+ const derived=new Map(records.inheritance117.map(x=>[x.id,x]));
+ const errors=[],paths=[],visiting=new Set(),memo=new Map();
+ function trace(id){
+  if(memo.has(id))return memo.get(id);
+  if(visiting.has(id)){errors.push({id,error:"CYCLE"});return []}
+  const root=roots.get(id);
+  if(root){if(root.door!=="CLOSED"||!["L","C","R"].includes(root.registry))errors.push({id,error:"INVALID_ROOT"});return [id]}
+  const node=derived.get(id);
+  if(!node){errors.push({id,error:"MISSING_PARENT"});return []}
+  visiting.add(id);
+  const parents=Array.isArray(node.parents)?node.parents:[];
+  if(!parents.length)errors.push({id,error:"EMPTY_PARENTS"});
+  const result=[...new Set(parents.flatMap(trace))];
+  visiting.delete(id);memo.set(id,result);return result;
+ }
+ for(const node of records.inheritance117){const ancestry=trace(node.id);paths.push({id:node.id,roots:ancestry,depth:node.generation||1})}
+ for(const w of records.self121)if(w.decisionId&&!derived.has(w.decisionId))errors.push({id:w.id,error:"ORPHAN_DECISION",parent:w.decisionId});
+ return {status:errors.length?"HOLD":"PASS",closedRoots:roots.size,derived:derived.size,selfWitnesses:records.self121.length,errors:errors.slice(0,30),latestPaths:paths.slice(-8),rule:"Trace only. Never rewrite parents. No checkpoints, consensus, or quorum"};
+}
+document.getElementById("cortexTrace123").onclick=async()=>{try{show(await causal123())}catch(e){show({hold:e.message})}};
 document.getElementById("cortexObserve115").onclick=pass;
 const autoButton116=document.getElementById("cortexAuto116");
 autoButton116.onclick=()=>{continuous116=!continuous116;autoButton116.textContent=continuous116?"Pause continuous observation":"Resume continuous observation";show({continuous:continuous116,closedDoors:closed116,last:last116})};
