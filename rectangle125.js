@@ -10,6 +10,11 @@ const data=Object.freeze(Array.from({length:24},(_,i)=>Object.freeze({id:"B"+(i+
 const tools=Object.freeze(Array.from({length:15},(_,i)=>Object.freeze({id:"T"+(i+1),x:i%5,y:Math.floor(i/5)})));
 let pending127=null;let observed127=null;
 let generated=0;
+const STORE128="cubi.aether128.proposals.v1";let events128=[];let hold128=null;
+try{const raw=JSON.parse(localStorage.getItem(STORE128)||"[]");if(!Array.isArray(raw))throw Error("invalid proposal history");for(let i=0;i<raw.length;i++){const e=raw[i];if(e.seq!==i+1||e.prev!==i||!["PROPOSED","BOUND","HELD"].includes(e.kind)||e.substrate!=="{{aether}}")throw Error("proposal continuity "+i)}events128=raw}catch(e){hold128=e.message}
+function append128(kind,proposal,extra={}){if(hold128)throw Error("proposal ledger HOLD "+hold128);const entry=Object.freeze({seq:events128.length+1,prev:events128.length,kind,substrate:"{{aether}}",proposal,...extra});const next=events128.concat([entry]);localStorage.setItem(STORE128,JSON.stringify(next));events128=next;return entry}
+function audit128(){const items=new Map();for(const e of events128){if(e.kind==="PROPOSED")items.set(e.proposal,{id:e.proposal,state:"PENDING",source:e.source,tool:e.tool});else if(items.has(e.proposal))items.get(e.proposal).state=e.kind}return {totalEvents:events128.length,proposals:[...items.values()],recent:events128.slice(-12),hold:hold128}}
+
 const STORE126="cubi.aether126.events.v1";let history126=[];let hold126=null;
 try{const saved=JSON.parse(localStorage.getItem(STORE126)||"[]");if(!Array.isArray(saved))throw Error("invalid aether ledger");for(let i=0;i<saved.length;i++){if(saved[i].seq!==i+1||saved[i].parent!==i||saved[i].substrate!==SUBSTRATE.name||saved[i].door!=="CLOSED")throw Error("aether continuity error "+i)}history126=saved;generated=saved.length}catch(e){hold126=e.message}
 function draw(){
@@ -23,18 +28,24 @@ function draw(){
  for(const item of tools){const x=left+item.x*tw,y=ty+item.y*th;ctx.strokeStyle="#ffbb65";ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x+tw/2,y+th/2,Math.max(8,tw/2-7),th/2-7,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle="#ffe0ae";ctx.font="12px monospace";ctx.textAlign="center";ctx.fillText(item.id,x+tw/2,y+th/2+4)}
  ctx.textAlign="left";ctx.fillStyle="#a4eec8";ctx.font="12px monospace";ctx.fillText("[]⁴ DATA   ()³ TOOLS   {n}ⁿ SCOPE",left,526);
 }
-function audit(){return {schema:"CUBI126",substrate:SUBSTRATE.name,stored:history126.length,hold:hold126,expression:"{ [6x4(5x3)] }",brace:1,boxes:data.length,toroids:tools.length,distinctIDs:new Set([...data,...tools].map(x=>x.id)).size===39,automaticExecution:false,derived:generated,rule:"Containment is not execution; source BOX and TOOL descriptors remain unchanged"}}
+function audit(){return {schema:"CUBI128",substrate:SUBSTRATE.name,stored:history126.length,hold:hold126,expression:"{ [6x4(5x3)] }",brace:1,boxes:data.length,toroids:tools.length,distinctIDs:new Set([...data,...tools].map(x=>x.id)).size===39,automaticExecution:false,derived:generated,rule:"Containment is not execution; source BOX and TOOL descriptors remain unchanged"}}
 document.getElementById("rectangleAudit125").onclick=()=>status.textContent=JSON.stringify(audit(),null,2);
 document.getElementById("rectangleBind125").onclick=()=>{try{
- if(hold126)throw Error("DIODIC HOLD "+hold126);
+ if(hold126)throw Error("DIODIC HOLD "+hold126); if(pending127&&hold128)throw Error("PROPOSAL HOLD "+hold128);
  const seq=history126.length+1,source=pending127?data.find(x=>x.id===pending127.source):data[(seq-1)%data.length],tool=pending127?tools.find(x=>x.id===pending127.tool):tools[(seq-1)%tools.length];
  const result=Object.freeze({seq,parent:seq-1,id:"AETHER-D"+seq,substrate:SUBSTRATE.name,source:source.id,tool:tool.id,operation:"explicit symbolic bind",proposal127:pending127?pending127.id:null,observation127:pending127?pending127.observation:null,door:"CLOSED"});
- const next=history126.concat([result]);localStorage.setItem(STORE126,JSON.stringify(next));history126=next;generated=seq;pending127=null;
+ const next=history126.concat([result]);localStorage.setItem(STORE126,JSON.stringify(next));history126=next;generated=seq;
+ if(pending127){try{append128("BOUND",pending127.id,{result:result.id})}catch(e){hold128=e.message;status.textContent="BIND CLOSED / AUDIT HOLD: "+e.message;pending127=null;return}}pending127=null;
  status.textContent=JSON.stringify({result,audit:audit()},null,2);
  }catch(e){status.textContent="HOLD: "+e.message}};
 window.CUBI126=Object.freeze({substrate:SUBSTRATE,audit:()=>audit(),history:()=>history126.slice()});
 
 const controls=host.querySelector(".controls");
+const inspect128=document.createElement("button");inspect128.textContent="Inspect proposal history";controls.append(inspect128);inspect128.onclick=()=>status.textContent=JSON.stringify(audit128(),null,2);
+const holdButton128=document.createElement("button");holdButton128.textContent="Hold pending proposal";controls.append(holdButton128);
+holdButton128.onclick=()=>{try{if(!pending127)throw Error("no pending proposal");append128("HELD",pending127.id,{reason:"explicit human hold"});pending127=null;status.textContent=JSON.stringify(audit128(),null,2)}catch(e){status.textContent="HOLD: "+e.message}};
+window.CUBI128=Object.freeze({audit:()=>audit128(),events:()=>events128.slice()});
+
 const proposalButton=document.createElement("button");proposalButton.textContent="Observe cortex → propose";proposalButton.id="aetherPropose127";controls.prepend(proposalButton);
 const proposalStatus=document.createElement("pre");proposalStatus.id="aetherProposal127";proposalStatus.textContent="Cortex not yet sampled. Proposals cannot execute themselves.";controls.after(proposalStatus);
 const proposalLog=Object.freeze({name:"CUBI127",substrate:"{{aether}}"});
@@ -44,7 +55,10 @@ proposalButton.onclick=async()=>{try{
  const fingerprint=String(observed.id||observed.key||observed.tick||JSON.stringify(observed).slice(0,120));
  observed127=fingerprint;
  const index=(history126.length+fingerprint.length)%data.length,toolIndex=(history126.length+fingerprint.length)%tools.length;
- pending127=Object.freeze({id:"P127-"+(history126.length+1),observation:fingerprint,source:data[index].id,tool:tools[toolIndex].id,executed:false});
+ if(pending127){append128("HELD",pending127.id,{reason:"superseded"});pending127=null}
+ const id="P128-"+(events128.length+1);
+ const proposal=Object.freeze({id,observation:fingerprint,source:data[index].id,tool:tools[toolIndex].id,executed:false});
+ append128("PROPOSED",id,{source:proposal.source,tool:proposal.tool,observation:fingerprint});pending127=proposal;
  proposalStatus.textContent=JSON.stringify({proposal:pending127,rule:"Proposal is not execution. Use Bind sample explicitly to close."},null,2);
  }catch(e){pending127=null;proposalStatus.textContent="OBSERVATION HOLD: "+e.message}};
 window.CUBI127=Object.freeze({schema:proposalLog,proposal:()=>pending127,observation:()=>observed127});
