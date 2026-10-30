@@ -1,0 +1,15 @@
+// CUBI 138 — divergence attribution without voting or forced agreement.
+(()=>{"use strict";const host=document.getElementById("aether138");if(!host)return;
+host.innerHTML='<h2>CUBI 138 · WITNESS DIVERGENCE ATTRIBUTION</h2><p>{{aether}} · LH / CH / RH · separate perspectives</p><button id="attribute138">Attribute latest witness divergence</button><pre id="out138">No attribution requested.</pre>';
+const out=document.getElementById("out138");
+function open(name,store){return new Promise((ok,bad)=>{const q=indexedDB.open(name);q.onsuccess=()=>{const d=q.result;if(!d.objectStoreNames.contains(store)){d.close();bad(Error("missing "+store));return}const t=d.transaction(store,"readonly"),r=t.objectStore(store).getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>bad(r.error);t.oncomplete=()=>d.close()};q.onerror=()=>bad(q.error)})}
+function classify(reports,events){const issues=[],readings=["LH","CH","RH"].map(observer=>reports.find(x=>x.observer===observer));if(readings.some(x=>!x))return {status:"UNVERIFIED",reason:"MISSING_WITNESS",readings};
+ for(const x of readings){if(x.issues?.length)issues.push({observer:x.observer,reason:"SELF_REPORTED_SEQUENCE_DEFECT",details:x.issues});if(x.count<0||!Number.isInteger(x.count))issues.push({observer:x.observer,reason:"INVALID_COUNT"});if(x.count>events.length)issues.push({observer:x.observer,reason:"WITNESS_AHEAD_OF_CURRENT_LEDGER"});if(x.count&&x.tip!=="C133-"+x.count)issues.push({observer:x.observer,reason:"TIP_COUNT_MISMATCH"})}
+ const allMatch=readings.every(x=>x.digest===readings[0].digest&&x.count===readings[0].count);
+ const differing=readings.some(x=>x.digest!==readings[0].digest);
+ let explanation=allMatch?"AGREEMENT_OBSERVED":readings.every((x,i)=>i===0||x.count>=readings[i-1].count)&&new Set(readings.map(x=>x.count)).size>1?"POSSIBLE_INTERLEAVED_APPEND":"UNEXPLAINED_DIVERGENCE";
+ if(differing&&new Set(readings.map(x=>x.count)).size===1)explanation="SAME_LENGTH_DIGEST_MISMATCH";
+ return {status:issues.length?"HOLD":allMatch?"MATCH":"UNVERIFIED",explanation,issues,readings:readings.map(x=>({observer:x.observer,count:x.count,tip:x.tip,digest:x.digest,observedAt:x.observedAt})),note:"Only counts, tips and full digests are available; past prefix hashes cannot be reconstructed from these reports. Possible timing is not proof."}}
+document.getElementById("attribute138").onclick=async()=>{try{const [reports,events]=await Promise.all([open("cubi.aether137.witnesses.v1","reports"),open("cubi.aether133.v1","events")]);const sessions=new Map();for(const r of reports){const group=sessions.get(r.session)||[];group.push(r);sessions.set(r.session,group)}const last=[...sessions.values()].at(-1);out.textContent=JSON.stringify(last?classify(last,events):{status:"UNVERIFIED",reason:"NO_WITNESS_REPORTS"},null,2)}catch(e){out.textContent=JSON.stringify({status:"UNVERIFIED",reason:e.message},null,2)}};
+window.CUBI138=Object.freeze({classify});
+})();
