@@ -1,7 +1,7 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
 function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
@@ -30,6 +30,26 @@ async function lineage117(){const d=await db();return new Promise((ok,fail)=>{co
 }
 document.getElementById("cortexInherit117").onclick=async()=>{try{show(await inherit117())}catch(e){show({hold:e.message})}};
 document.getElementById("cortexLineage117").onclick=async()=>{try{show(await lineage117())}catch(e){show({hold:e.message})}};
+// CUBI 118: one-way recursion over the latest existing derived observation.
+async function recurse118(){
+ const d=await db();
+ return new Promise((ok,fail)=>{
+  const t=d.transaction("inheritance117","readwrite"),store=t.objectStore("inheritance117");
+  const get=store.getAll();let outcome=null;
+  get.onsuccess=()=>{
+   const list=get.result.filter(x=>x.type==="CORTEX_INHERITANCE"||x.type==="RECURSIVE_INHERITANCE");
+   if(!list.length){t.abort();return}
+   const ordered=list.sort((a,b)=>(a.generation||1)-(b.generation||1)||a.id.localeCompare(b.id));
+   const parent=ordered.at(-1),generation=(parent.generation||1)+1,id="recursive:"+generation+":"+parent.id;
+   const child={id,type:"RECURSIVE_INHERITANCE",generation,parents:[parent.id],rootParents:parent.rootParents||parent.parents,createdAt:Date.now(),door:"CLOSED",
+    note:"New child references a closed parent; no ancestor mutation, checkpoint, vote or quorum"};
+   const found=store.get(id);
+   found.onsuccess=()=>{if(found.result){outcome={inserted:false,id,generation}}else{store.add(child);outcome={inserted:true,id,generation,parent:parent.id}}};
+  };
+  t.oncomplete=()=>ok(outcome);t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error||Error("No inherited root: use Inherit closed reports first"));
+ });
+}
+document.getElementById("cortexRecurse118").onclick=async()=>{try{show(await recurse118())}catch(e){show({hold:e.message})}};
 document.getElementById("cortexObserve115").onclick=pass;
 const autoButton116=document.getElementById("cortexAuto116");
 autoButton116.onclick=()=>{continuous116=!continuous116;autoButton116.textContent=continuous116?"Pause continuous observation":"Resume continuous observation";show({continuous:continuous116,closedDoors:closed116,last:last116})};
