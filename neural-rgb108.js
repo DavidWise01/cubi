@@ -17,10 +17,20 @@ function update(f,k){
  }
  f.voltage.set(f.next);f.tick++;f.stimulus=0;f.last={residual:(sumA-sumB)/(NODES*PER),spikes,A:sumA/(NODES*PER),B:sumB/(NODES*PER)};
 }
-let running=true;function frame(){if(running)fields.forEach(update);setTimeout(frame,60)}frame();
+// CUBI 111: frame-budgeted hot loop; browsers JIT-compile hot update() naturally.
+let running=true,lastFrame=0,frames=0,lastStepMs=0,loopFault=null;
+function frame(now){
+ if(running&&now-lastFrame>=50){
+  const start=performance.now();
+  try{fields.forEach(update);frames++}catch(e){loopFault=e.message;running=false}
+  lastStepMs=performance.now()-start;lastFrame=now;
+ }
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
 window.CUBI108={
  observe(){return fields.map(f=>({registry:f.id,hemisphere:f.hemisphere,color:f.color,laneIn:"ff",laneOut:"rr",residual:f.last.residual,sourceTick:f.tick,source:"Independent RGB neural field CUBI108",spikes:f.last.spikes,contributionA:f.last.A,contributionB:f.last.B,interpretation:"Distinct simulation buffer and dynamics per registry; shared A/B controls; no biological inference"}))},
- status(){return fields.map(f=>({registry:f.id,tick:f.tick,neurons:f.voltage.length,...f.last}))},
+ status(){return {running,frames,lastStepMs,loopFault,fields:fields.map(f=>({registry:f.id,tick:f.tick,neurons:f.voltage.length,...f.last}))}},
  stimulate(id){const f=fields.find(x=>x.id===id);if(!f)throw Error("invalid registry");f.stimulus=1},
  pause(){running=!running;return running}
 };
