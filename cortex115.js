@@ -1,9 +1,9 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexAgent120">Pause cortex agent</button><button id="cortexAgentAudit120">Agent novelty audit</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexAgent120">Pause cortex agent</button><button id="cortexAgentAudit120">Agent novelty audit</button><button id="cortexLocal121">Inspect local observer</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
-function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
+function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,3);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"});if(!r.result.objectStoreNames.contains("self121"))r.result.createObjectStore("self121",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function source(){const a=window.CUBI108?.observe();if(!a||a.length!==3)throw Error("Independent observer fields unavailable");return a}
 async function pass(){if(working)return;working=true;try{const d=await db(),reports=source();const result=await new Promise((ok,fail)=>{const t=d.transaction("cortex","readwrite"),store=t.objectStore("cortex");let admitted=0,already=0;t.oncomplete=()=>ok({admitted,already});t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error||Error("door failed"));for(const report of reports){const id=report.registry+"@"+report.sourceTick,r=store.get(id);r.onsuccess=()=>{if(r.result){already++;return}store.add({id,...report,passedAt:Date.now(),door:"CLOSED",destination:"MAIN_CORTEX"});admitted++}}});closed116+=result.admitted;last116={...result,closedDoors:closed116,observers:3,mode:"CONTINUOUS",rule:"one-way after passage; no vote or checkpoint"};show(last116)}catch(e){show({hold:e.message})}finally{working=false}}
@@ -75,6 +75,32 @@ async function consequence119(){
  });
 }
 document.getElementById("cortexObserve119").onclick=async()=>{try{show(await consequence119())}catch(e){show({hold:e.message})}};
+// CUBI 121 — one local observer watches the agent's decisions without changing policy.
+let selfSeq121=0,selfFault121=null;
+async function selfObserve121(result,inputs){
+ const d=await db();return new Promise((ok,fail)=>{
+  const t=d.transaction("self121","readwrite"),o=t.objectStore("self121"),r=o.getAll();let record;
+  r.onsuccess=()=>{
+   const history=r.result,prev=history.sort((a,b)=>a.seq-b.seq).at(-1);
+   const seq=(prev?.seq||0)+1;
+   record={id:"self121:"+seq,seq,parent:prev?.id||null,decision:result.status,sourceIds:inputs.map(x=>x.id),reason:result.differences||[],policy:{residual:0.0005,spikes:1},observedAt:Date.now(),door:"CLOSED"};
+   o.add(record)
+  };
+  t.oncomplete=()=>ok(record);t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error)
+ })
+}
+async function selfAudit121(){
+ const d=await db();return new Promise((ok,fail)=>{
+  const t=d.transaction("self121","readonly"),r=t.objectStore("self121").getAll();let report;
+  r.onsuccess=()=>{
+   const all=r.result.sort((a,b)=>a.seq-b.seq);
+   const valid=all.every((x,i)=>x.seq===i+1&&x.parent===(i?all[i-1].id:null)&&x.policy.residual===0.0005&&x.policy.spikes===1);
+   report={status:valid?"PASS":"HOLD",decisions:all.length,inherited:all.filter(x=>x.decision==="NOVEL").length,held:all.filter(x=>x.decision==="STABLE").length,last:all.at(-1)||null,rule:"one-way self-observation; policy is not rewritten"}
+  };
+  t.oncomplete=()=>ok(report);t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error)
+ })
+}
+document.getElementById("cortexLocal121").onclick=async()=>{try{show(await selfAudit121())}catch(e){show({hold:e.message})}};
 // CUBI 120: an autonomous, observation-only novelty agent (not a language model).
 const NOVELTY120={residual:0.0005,spikes:1},AGENT120={active:true,busy:false,cycles:0,novel:0,stable:0,last:null,error:null};
 async function agent120(){
@@ -99,7 +125,7 @@ async function agent120(){
    };
    tx.oncomplete=()=>ok(outcome);tx.onerror=()=>fail(tx.error);tx.onabort=()=>fail(tx.error);
   });
-  AGENT120.cycles++;AGENT120[result.status==="NOVEL"?"novel":"stable"]++;AGENT120.last=result;AGENT120.error=null;
+  AGENT120.cycles++;AGENT120[result.status==="NOVEL"?"novel":"stable"]++;AGENT120.last=result;AGENT120.error=null;await selfObserve121(result,current);
  }catch(e){AGENT120.error=e.message;AGENT120.active=false;document.getElementById("cortexAgent120").textContent="Resume cortex agent"}
  finally{AGENT120.busy=false}
 }
