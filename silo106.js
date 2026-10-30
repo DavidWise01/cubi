@@ -17,7 +17,7 @@ async function observe(){
  if(fault)throw Error("SILO HOLD "+fault);
  validate109();await validate110();const batch=residuals();
  const appended=[];for(const b of batch){const previous=streamHistory(b.registry).filter(x=>x.witness110).at(-1)?.hash||"GENESIS";const entry={seq:events.length+appended.length+1,parent:events.length+appended.length,phase:PHASE[(events.length+appended.length)%10],...b,witness109:true,witness110:true,localSeq:streamHistory(b.registry).length+1,localParent:streamHistory(b.registry).length,prevHash:previous};entry.hash=await SHA110(entry);appended.push(entry)}
- if(localStorage.getItem(KEY)!==JSON.stringify(events))throw Error("SILO HOLD: external concurrent change");localStorage.setItem(KEY,JSON.stringify(events.concat(appended)));events.push(...appended);return appended
+ if((localStorage.getItem(KEY)||"[]")!==JSON.stringify(events))throw Error("SILO HOLD: external concurrent change");localStorage.setItem(KEY,JSON.stringify(events.concat(appended)));events.push(...appended);return appended
 }
 async function audit(){
  let integrity="PASS";try{validate109();await validate110()}catch(e){integrity=e.message}
