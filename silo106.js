@@ -11,21 +11,23 @@ function streamHistory(id){return events.filter(e=>e.registry===id&&e.witness109
 function validate109(){
  for(const id of REG){const stream=streamHistory(id);for(let i=0;i<stream.length;i++){const r=stream[i];if(r.localSeq!==i+1||r.localParent!==i||r.hemisphere!==BRAIN.find(x=>x.registry===id).hemisphere||r.color!==BRAIN.find(x=>x.registry===id).color||r.laneIn!=="ff"||r.laneOut!=="rr")throw Error("WITNESS HOLD "+id+" #"+(i+1));if(i&&r.sourceTick<stream[i-1].sourceTick)throw Error("TICK REGRESSION "+id)}}return true
 }
-function observe(){
+const SHA110=async data=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(data))))).map(x=>x.toString(16).padStart(2,"0")).join("");
+async function validate110(){for(const id of REG){let previous="GENESIS";for(const e of streamHistory(id).filter(x=>x.witness110)){if(e.prevHash!==previous)throw Error("CHAIN110 PARENT "+id);const {hash,...payload}=e;if(await SHA110(payload)!==hash)throw Error("CHAIN110 DIGEST "+id);previous=hash}}return true}
+async function observe(){
  if(fault)throw Error("SILO HOLD "+fault);
- validate109();const batch=residuals();
- const appended=batch.map((b,i)=>({seq:events.length+i+1,parent:events.length+i,phase:PHASE[(events.length+i)%10],...b,witness109:true,localSeq:streamHistory(b.registry).length+1,localParent:streamHistory(b.registry).length}));
- localStorage.setItem(KEY,JSON.stringify(events.concat(appended)));events.push(...appended);return appended
+ validate109();await validate110();const batch=residuals();
+ const appended=[];for(const b of batch){const previous=streamHistory(b.registry).filter(x=>x.witness110).at(-1)?.hash||"GENESIS";const entry={seq:events.length+appended.length+1,parent:events.length+appended.length,phase:PHASE[(events.length+appended.length)%10],...b,witness109:true,witness110:true,localSeq:streamHistory(b.registry).length+1,localParent:streamHistory(b.registry).length,prevHash:previous};entry.hash=await SHA110(entry);appended.push(entry)}
+ if(localStorage.getItem(KEY)!==JSON.stringify(events))throw Error("SILO HOLD: external concurrent change");localStorage.setItem(KEY,JSON.stringify(events.concat(appended)));events.push(...appended);return appended
 }
-function audit(){
- let integrity="PASS";try{validate109()}catch(e){integrity=e.message}
+async function audit(){
+ let integrity="PASS";try{validate109();await validate110()}catch(e){integrity=e.message}
  const latest=REG.map(id=>streamHistory(id).at(-1));
  const deltas=latest.every(Boolean)?{blueMinusGreen:latest[0].residual-latest[1].residual,greenMinusRed:latest[1].residual-latest[2].residual,redMinusBlue:latest[2].residual-latest[0].residual}:null;
  return {status:fault?"HOLD":integrity,fault,streams:BRAIN.map(x=>({id:x.registry,hemisphere:x.hemisphere,color:x.color,lanes:x.lanes,legacyEntries:events.filter(e=>e.registry===x.registry&&!e.witness109).length,witnesses:streamHistory(x.registry).length,last:streamHistory(x.registry).at(-1)||null})),differences:deltas,mainSilo:{entries:events.length,nextPhase:PHASE[events.length%10]},rule:"independent reports; compare differences; no quorum or forced agreement"}
 }
 function draw(){const r=canvas.getBoundingClientRect(),dp=Math.min(devicePixelRatio||1,2);if(canvas.width!==Math.round(r.width*dp)||canvas.height!==Math.round(r.height*dp)){canvas.width=Math.round(r.width*dp);canvas.height=Math.round(r.height*dp)}ctx.setTransform(dp,0,0,dp,0,0);const w=r.width,h=r.height;ctx.clearRect(0,0,w,h);const c=[w*center[0],h*center[1]];positions.forEach(([x,y],i)=>{const p=[x*w,y*h],color=BRAIN[i].hex;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(...p);ctx.lineTo(...c);ctx.stroke();for(let row=0;row<3;row++)for(let col=0;col<3;col++){const xx=p[0]+(col-1)*19,yy=p[1]+(row-1)*19;ctx.beginPath();ctx.arc(xx,yy,5,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=.55;ctx.fill()}ctx.globalAlpha=1;ctx.font="12px monospace";ctx.textAlign="center";ctx.fillStyle="#e4f6ff";ctx.fillText(BRAIN[i].hemisphere+" · "+REG[i]+" · "+BRAIN[i].color.toUpperCase()+" · ff → rr",p[0],p[1]-43)});ctx.strokeStyle="#86ffbc";ctx.lineWidth=3;ctx.strokeRect(c[0]-37,c[1]-26,74,52);ctx.fillStyle="#a6ffda";ctx.font="bold 12px monospace";ctx.textAlign="center";ctx.fillText("SILO",...c);ctx.font="11px monospace";ctx.fillText(events.length+" residuals",c[0],c[1]+16)}
-document.getElementById("siloSample106").onclick=()=>{try{const rows=observe();document.getElementById("siloReport106").textContent=JSON.stringify(rows,null,2);draw()}catch(e){document.getElementById("siloReport106").textContent=e.message}};
-document.getElementById("siloAudit106").onclick=()=>{document.getElementById("siloReport106").textContent=JSON.stringify(audit(),null,2)};
+document.getElementById("siloSample106").onclick=async()=>{try{const rows=await observe();document.getElementById("siloReport106").textContent=JSON.stringify(rows,null,2);draw()}catch(e){document.getElementById("siloReport106").textContent=e.message}};
+document.getElementById("siloAudit106").onclick=async()=>{document.getElementById("siloReport106").textContent=JSON.stringify(await audit(),null,2)};
 document.getElementById("siloExport106").onclick=()=>{const blob=new Blob([JSON.stringify({schema:"CUBI107",events},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-main-silo.json";a.click();URL.revokeObjectURL(a.href)};
-draw();document.getElementById("siloReport106").textContent=JSON.stringify(audit(),null,2);
+draw();audit().then(x=>document.getElementById("siloReport106").textContent=JSON.stringify(x,null,2));
 })();
