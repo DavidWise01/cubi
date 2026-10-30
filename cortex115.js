@@ -1,9 +1,9 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
-function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
+function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function source(){const a=window.CUBI108?.observe();if(!a||a.length!==3)throw Error("Independent observer fields unavailable");return a}
 async function pass(){if(working)return;working=true;try{const d=await db(),reports=source();const result=await new Promise((ok,fail)=>{const t=d.transaction("cortex","readwrite"),store=t.objectStore("cortex");let admitted=0,already=0;t.oncomplete=()=>ok({admitted,already});t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error||Error("door failed"));for(const report of reports){const id=report.registry+"@"+report.sourceTick,r=store.get(id);r.onsuccess=()=>{if(r.result){already++;return}store.add({id,...report,passedAt:Date.now(),door:"CLOSED",destination:"MAIN_CORTEX"});admitted++}}});closed116+=result.admitted;last116={...result,closedDoors:closed116,observers:3,mode:"CONTINUOUS",rule:"one-way after passage; no vote or checkpoint"};show(last116)}catch(e){show({hold:e.message})}finally{working=false}}
@@ -12,6 +12,24 @@ function show(data){out.textContent=JSON.stringify(data,null,2)}
 function draw(){const w=canvas.clientWidth||500,h=290,scale=devicePixelRatio||1;canvas.width=Math.round(w*scale);canvas.height=h*scale;g.setTransform(scale,0,0,scale,0,0);g.clearRect(0,0,w,h);
  OB.forEach((o,i)=>{const x=w*(.17+i*.33),y=65;g.strokeStyle=o.color;g.fillStyle=o.color;g.lineWidth=2;g.beginPath();g.arc(x,y,23,0,Math.PI*2);g.stroke();g.font="bold 12px monospace";g.textAlign="center";g.fillText(o.id,x,y+4);g.font="11px monospace";g.fillText(o.hemisphere+" "+o.label,x,y-34);const mid=w*.5;g.beginPath();g.moveTo(x,y+25);g.lineTo(mid,208);g.stroke();g.fillText("ff → rr",x,y+46)});
  g.strokeStyle="#8ef6b9";g.strokeRect(w*.5-60,193,120,63);g.fillStyle="#8ef6b9";g.textAlign="center";g.font="bold 12px monospace";g.fillText("MAIN CORTEX",w*.5,219);g.font="10px monospace";g.fillText("door closes",w*.5,236)}
+// CUBI 117: derived observation is new; original closed records remain unchanged.
+async function inherit117(){
+ const d=await db(),all=await txRead(d);
+ const sources=["L","C","R"].map(id=>all.filter(x=>x.registry===id&&x.door==="CLOSED").sort((a,b)=>b.sourceTick-a.sourceTick)[0]).filter(Boolean);
+ if(!sources.length)throw Error("NO CLOSED OBSERVATIONS");
+ const ids=sources.map(x=>x.id).sort(),id="inherit:"+ids.join("|");
+ const derived={id,type:"CORTEX_INHERITANCE",parents:ids,createdAt:Date.now(),parentCount:ids.length,
+  contrasts:sources.map(x=>({registry:x.registry,sourceTick:x.sourceTick,residual:x.residual,spikes:x.spikes})),
+  note:"Derived comparison, not source modification; disagreement preserved; no quorum"};
+ return await new Promise((ok,fail)=>{const t=d.transaction("inheritance117","readwrite"),o=t.objectStore("inheritance117"),check=o.get(id);let inserted=false;
+ check.onsuccess=()=>{if(!check.result){o.add(derived);inserted=true}};
+ t.oncomplete=()=>ok({inserted,derived:inserted?derived:{id,parents:ids,note:"already inherited"}});t.onerror=()=>fail(t.error);t.onabort=()=>fail(t.error)})
+}
+async function lineage117(){const d=await db();return new Promise((ok,fail)=>{const t=d.transaction(["cortex","inheritance117"],"readonly"),a=t.objectStore("cortex").getAll(),b=t.objectStore("inheritance117").getAll();let originals,derived;
+ a.onsuccess=()=>{originals=a.result};b.onsuccess=()=>{derived=b.result};t.oncomplete=()=>ok({originals:originals.length,derived:derived.length,last:derived.slice(-5),rule:"parents remain closed and unchanged; children are new records"});t.onerror=()=>fail(t.error)})
+}
+document.getElementById("cortexInherit117").onclick=async()=>{try{show(await inherit117())}catch(e){show({hold:e.message})}};
+document.getElementById("cortexLineage117").onclick=async()=>{try{show(await lineage117())}catch(e){show({hold:e.message})}};
 document.getElementById("cortexObserve115").onclick=pass;
 const autoButton116=document.getElementById("cortexAuto116");
 autoButton116.onclick=()=>{continuous116=!continuous116;autoButton116.textContent=continuous116?"Pause continuous observation":"Resume continuous observation";show({continuous:continuous116,closedDoors:closed116,last:last116})};
