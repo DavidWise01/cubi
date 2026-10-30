@@ -8,6 +8,7 @@ host.innerHTML='<h2>CUBI 126 · {{aether}} SUBSTRATE</h2><p>{ [6×4(5×3)] } · 
 const canvas=document.getElementById("rectangleCanvas125"),ctx=canvas.getContext("2d"),status=document.getElementById("rectangleStatus125");
 const data=Object.freeze(Array.from({length:24},(_,i)=>Object.freeze({id:"B"+(i+1),x:i%6,y:Math.floor(i/6)})));
 const tools=Object.freeze(Array.from({length:15},(_,i)=>Object.freeze({id:"T"+(i+1),x:i%5,y:Math.floor(i/5)})));
+let pending127=null;let observed127=null;
 let generated=0;
 const STORE126="cubi.aether126.events.v1";let history126=[];let hold126=null;
 try{const saved=JSON.parse(localStorage.getItem(STORE126)||"[]");if(!Array.isArray(saved))throw Error("invalid aether ledger");for(let i=0;i<saved.length;i++){if(saved[i].seq!==i+1||saved[i].parent!==i||saved[i].substrate!==SUBSTRATE.name||saved[i].door!=="CLOSED")throw Error("aether continuity error "+i)}history126=saved;generated=saved.length}catch(e){hold126=e.message}
@@ -26,12 +27,27 @@ function audit(){return {schema:"CUBI126",substrate:SUBSTRATE.name,stored:histor
 document.getElementById("rectangleAudit125").onclick=()=>status.textContent=JSON.stringify(audit(),null,2);
 document.getElementById("rectangleBind125").onclick=()=>{try{
  if(hold126)throw Error("DIODIC HOLD "+hold126);
- const seq=history126.length+1,source=data[(seq-1)%data.length],tool=tools[(seq-1)%tools.length];
- const result=Object.freeze({seq,parent:seq-1,id:"AETHER-D"+seq,substrate:SUBSTRATE.name,source:source.id,tool:tool.id,operation:"explicit symbolic bind",door:"CLOSED"});
- const next=history126.concat([result]);localStorage.setItem(STORE126,JSON.stringify(next));history126=next;generated=seq;
+ const seq=history126.length+1,source=pending127?data.find(x=>x.id===pending127.source):data[(seq-1)%data.length],tool=pending127?tools.find(x=>x.id===pending127.tool):tools[(seq-1)%tools.length];
+ const result=Object.freeze({seq,parent:seq-1,id:"AETHER-D"+seq,substrate:SUBSTRATE.name,source:source.id,tool:tool.id,operation:"explicit symbolic bind",proposal127:pending127?pending127.id:null,observation127:pending127?pending127.observation:null,door:"CLOSED"});
+ const next=history126.concat([result]);localStorage.setItem(STORE126,JSON.stringify(next));history126=next;generated=seq;pending127=null;
  status.textContent=JSON.stringify({result,audit:audit()},null,2);
  }catch(e){status.textContent="HOLD: "+e.message}};
 window.CUBI126=Object.freeze({substrate:SUBSTRATE,audit:()=>audit(),history:()=>history126.slice()});
+
+const controls=host.querySelector(".controls");
+const proposalButton=document.createElement("button");proposalButton.textContent="Observe cortex → propose";proposalButton.id="aetherPropose127";controls.prepend(proposalButton);
+const proposalStatus=document.createElement("pre");proposalStatus.id="aetherProposal127";proposalStatus.textContent="Cortex not yet sampled. Proposals cannot execute themselves.";controls.after(proposalStatus);
+const proposalLog=Object.freeze({name:"CUBI127",substrate:"{{aether}}"});
+function latestCortex127(){return new Promise((resolve,reject)=>{const request=indexedDB.open("cubi.cortex115.v1");request.onerror=()=>reject(request.error);request.onsuccess=()=>{const db=request.result;if(!db.objectStoreNames.contains("cortex")){db.close();return reject(Error("cortex store unavailable"))}const tx=db.transaction("cortex","readonly");const get=tx.objectStore("cortex").getAll();get.onsuccess=()=>{const arr=get.result||[];db.close();resolve(arr.length?arr[arr.length-1]:null)};get.onerror=()=>{db.close();reject(get.error)}}})}
+proposalButton.onclick=async()=>{try{
+ const observed=await latestCortex127();if(!observed)throw Error("No closed cortex observation yet");
+ const fingerprint=String(observed.id||observed.key||observed.tick||JSON.stringify(observed).slice(0,120));
+ observed127=fingerprint;
+ const index=(history126.length+fingerprint.length)%data.length,toolIndex=(history126.length+fingerprint.length)%tools.length;
+ pending127=Object.freeze({id:"P127-"+(history126.length+1),observation:fingerprint,source:data[index].id,tool:tools[toolIndex].id,executed:false});
+ proposalStatus.textContent=JSON.stringify({proposal:pending127,rule:"Proposal is not execution. Use Bind sample explicitly to close."},null,2);
+ }catch(e){pending127=null;proposalStatus.textContent="OBSERVATION HOLD: "+e.message}};
+window.CUBI127=Object.freeze({schema:proposalLog,proposal:()=>pending127,observation:()=>observed127});
 
 draw();window.addEventListener("resize",draw);
 })();
