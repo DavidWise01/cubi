@@ -1,7 +1,7 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
 function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
@@ -50,6 +50,31 @@ async function recurse118(){
  });
 }
 document.getElementById("cortexRecurse118").onclick=async()=>{try{show(await recurse118())}catch(e){show({hold:e.message})}};
+// CUBI 119: only changed consequences cross the one-way inheritance door.
+async function consequence119(){
+ const d=await db(),originals=await txRead(d);
+ const latest=["L","C","R"].map(id=>originals.filter(r=>r.registry===id&&r.door==="CLOSED").sort((a,b)=>b.sourceTick-a.sourceTick)[0]).filter(Boolean);
+ if(!latest.length)throw Error("NO CLOSED SOURCE REPORTS");
+ const signature=latest.map(x=>x.id).sort().join("|");
+ return new Promise((ok,fail)=>{
+  const tx=d.transaction("inheritance117","readwrite"),store=tx.objectStore("inheritance117");
+  const listReq=store.getAll();let outcome;
+  listReq.onsuccess=()=>{
+   const records=listReq.result,changed=records.filter(x=>x.type==="CONSEQUENCE119").sort((a,b)=>a.generation-b.generation);
+   const last=changed.at(-1),lastSignature=last?.sourceSignature;
+   if(lastSignature===signature){outcome={status:"UNCHANGED",sourceSignature:signature,reason:"No new closed source IDs; door remains closed"};return}
+   const parent=last||records.filter(x=>x.type==="RECURSIVE_INHERITANCE"||x.type==="CORTEX_INHERITANCE").sort((a,b)=>(a.generation||1)-(b.generation||1)).at(-1);
+   const generation=(parent?.generation||1)+1,ids=latest.map(x=>x.id).sort();
+   const value={id:"consequence:"+ids.join("|"),type:"CONSEQUENCE119",generation,parents:parent?[parent.id]:ids,sourceIds:ids,sourceSignature:signature,door:"CLOSED",createdAt:Date.now(),
+    observations:latest.map(x=>({source:x.registry,tick:x.sourceTick,residual:x.residual,spikes:x.spikes})),
+    note:"A new closed source observation is a new consequence; existing reports never revised"};
+   const check=store.get(value.id);
+   check.onsuccess=()=>{if(check.result){outcome={status:"ALREADY_PRESERVED",id:value.id};return}store.add(value);outcome={status:"INHERITED",id:value.id,generation,parents:value.parents}};
+  };
+  tx.oncomplete=()=>ok(outcome);tx.onerror=()=>fail(tx.error);tx.onabort=()=>fail(tx.error);
+ });
+}
+document.getElementById("cortexObserve119").onclick=async()=>{try{show(await consequence119())}catch(e){show({hold:e.message})}};
 document.getElementById("cortexObserve115").onclick=pass;
 const autoButton116=document.getElementById("cortexAuto116");
 autoButton116.onclick=()=>{continuous116=!continuous116;autoButton116.textContent=continuous116?"Pause continuous observation":"Resume continuous observation";show({continuous:continuous116,closedDoors:closed116,last:last116})};
