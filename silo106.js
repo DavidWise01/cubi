@@ -2,7 +2,7 @@
 (()=>{"use strict";
 const root=document.getElementById("silo106");if(!root)return;
 const KEY="cubi.silo106.v1",REG=["L","C","R"],BRAIN=[{registry:"L",hemisphere:"LH",color:"blue",hex:"#418bff",lanes:["ff","rr"]},{registry:"C",hemisphere:"CH",color:"green",hex:"#42f49b",lanes:["ff","rr"]},{registry:"R",hemisphere:"RH",color:"red",hex:"#ff586c",lanes:["ff","rr"]}],PHASE=["C1","C2","C3","C1","C2","C3","C1","C2","C3","C1"];
-root.innerHTML='<h2>MAIN SILO · THREE DIODIC REGISTRIES</h2><p class="muted">{{ [(lh,ff,rr)L] [(ch,ff,rr)C] [(rh,ff,rr)R] }} · BLUE / GREEN / RED · 27 logical registers · no quorum</p><canvas id="siloCanvas106" style="width:100%;height:360px;display:block;border:1px solid #284663;border-radius:10px;background:#060d1b"></canvas><div class="controls"><button id="siloSample106">Observe residuals</button><button id="siloAudit106">Audit silo</button><button id="siloExport106">Export silo</button></div><pre id="siloReport106">Silo initializes without rewriting its sources.</pre>';
+root.innerHTML='<h2>MAIN SILO · THREE DIODIC REGISTRIES</h2><p class="muted">{{ [(lh,ff,rr)L] [(ch,ff,rr)C] [(rh,ff,rr)R] }} · BLUE / GREEN / RED · 27 logical registers · no quorum</p><canvas id="siloCanvas106" style="width:100%;height:360px;display:block;border:1px solid #284663;border-radius:10px;background:#060d1b"></canvas><div class="controls"><button id="siloSample106">Observe residuals</button><button id="siloAudit106">Audit silo</button><button id="siloExport106">Export silo</button><button id="siloAuto111">Start paced intake</button><button id="siloHealth111">Runtime health</button></div><pre id="siloReport106">Silo initializes without rewriting its sources.</pre>';
 let events=[],fault=null;try{const saved=JSON.parse(localStorage.getItem(KEY)||"[]");if(!Array.isArray(saved))throw Error("invalid journal");for(let i=0;i<saved.length;i++){const e=saved[i];if(e.seq!==i+1||e.parent!==i||e.phase!==PHASE[i%10]||!(REG.includes(e.registry)||["R1","R2","R3"].includes(e.registry))||!Number.isFinite(e.residual))throw Error("sequence invalid at "+(i+1))}events=saved}catch(e){fault=e.message}
 const canvas=document.getElementById("siloCanvas106"),ctx=canvas.getContext("2d");
 const positions=[[.18,.28],[.5,.18],[.82,.28]],center=[.5,.69];
@@ -13,11 +13,14 @@ function validate109(){
 }
 const SHA110=async data=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(data))))).map(x=>x.toString(16).padStart(2,"0")).join("");
 async function validate110(){for(const id of REG){let previous="GENESIS";for(const e of streamHistory(id).filter(x=>x.witness110)){if(e.prevHash!==previous)throw Error("CHAIN110 PARENT "+id);const {hash,...payload}=e;if(await SHA110(payload)!==hash)throw Error("CHAIN110 DIGEST "+id);previous=hash}}return true}
-async function observe(){
+let writing111=false;async function observe(){
+ if(writing111)throw Error("INTAKE BUSY: a previous batch is pending");writing111=true;
+ try{
  if(fault)throw Error("SILO HOLD "+fault);
  validate109();await validate110();const batch=residuals();
  const appended=[];for(const b of batch){const previous=streamHistory(b.registry).filter(x=>x.witness110).at(-1)?.hash||"GENESIS";const entry={seq:events.length+appended.length+1,parent:events.length+appended.length,phase:PHASE[(events.length+appended.length)%10],...b,witness109:true,witness110:true,localSeq:streamHistory(b.registry).length+1,localParent:streamHistory(b.registry).length,prevHash:previous};entry.hash=await SHA110(entry);appended.push(entry)}
  if((localStorage.getItem(KEY)||"[]")!==JSON.stringify(events))throw Error("SILO HOLD: external concurrent change");localStorage.setItem(KEY,JSON.stringify(events.concat(appended)));events.push(...appended);return appended
+ }finally{writing111=false}
 }
 async function audit(){
  let integrity="PASS";try{validate109();await validate110()}catch(e){integrity=e.message}
@@ -26,8 +29,12 @@ async function audit(){
  return {status:fault?"HOLD":integrity,fault,streams:BRAIN.map(x=>({id:x.registry,hemisphere:x.hemisphere,color:x.color,lanes:x.lanes,legacyEntries:events.filter(e=>e.registry===x.registry&&!e.witness109).length,witnesses:streamHistory(x.registry).length,last:streamHistory(x.registry).at(-1)||null})),differences:deltas,mainSilo:{entries:events.length,nextPhase:PHASE[events.length%10]},rule:"independent reports; compare differences; no quorum or forced agreement"}
 }
 function draw(){const r=canvas.getBoundingClientRect(),dp=Math.min(devicePixelRatio||1,2);if(canvas.width!==Math.round(r.width*dp)||canvas.height!==Math.round(r.height*dp)){canvas.width=Math.round(r.width*dp);canvas.height=Math.round(r.height*dp)}ctx.setTransform(dp,0,0,dp,0,0);const w=r.width,h=r.height;ctx.clearRect(0,0,w,h);const c=[w*center[0],h*center[1]];positions.forEach(([x,y],i)=>{const p=[x*w,y*h],color=BRAIN[i].hex;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(...p);ctx.lineTo(...c);ctx.stroke();for(let row=0;row<3;row++)for(let col=0;col<3;col++){const xx=p[0]+(col-1)*19,yy=p[1]+(row-1)*19;ctx.beginPath();ctx.arc(xx,yy,5,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=.55;ctx.fill()}ctx.globalAlpha=1;ctx.font="12px monospace";ctx.textAlign="center";ctx.fillStyle="#e4f6ff";ctx.fillText(BRAIN[i].hemisphere+" · "+REG[i]+" · "+BRAIN[i].color.toUpperCase()+" · ff → rr",p[0],p[1]-43)});ctx.strokeStyle="#86ffbc";ctx.lineWidth=3;ctx.strokeRect(c[0]-37,c[1]-26,74,52);ctx.fillStyle="#a6ffda";ctx.font="bold 12px monospace";ctx.textAlign="center";ctx.fillText("SILO",...c);ctx.font="11px monospace";ctx.fillText(events.length+" residuals",c[0],c[1]+16)}
+let intake111=false,arrivals111=0,lastError111=null;
+function paced111(){if(!intake111)return;observe().then(()=>{arrivals111+=3;draw()}).catch(e=>{lastError111=e.message;intake111=false;document.getElementById("siloAuto111").textContent="Start paced intake";document.getElementById("siloReport106").textContent="INTAKE HOLD: "+e.message}).finally(()=>{if(intake111)setTimeout(paced111,1200)})}
+document.getElementById("siloAuto111").onclick=()=>{intake111=!intake111;document.getElementById("siloAuto111").textContent=intake111?"Pause paced intake":"Start paced intake";if(intake111)paced111()};
+document.getElementById("siloHealth111").onclick=async()=>{document.getElementById("siloReport106").textContent=JSON.stringify({runtime:window.CUBI108?.status()||"UNAVAILABLE",intake111,arrivals111,lastError111,witness:await audit()},null,2)};
 document.getElementById("siloSample106").onclick=async()=>{try{const rows=await observe();document.getElementById("siloReport106").textContent=JSON.stringify(rows,null,2);draw()}catch(e){document.getElementById("siloReport106").textContent=e.message}};
 document.getElementById("siloAudit106").onclick=async()=>{document.getElementById("siloReport106").textContent=JSON.stringify(await audit(),null,2)};
-document.getElementById("siloExport106").onclick=()=>{const blob=new Blob([JSON.stringify({schema:"CUBI107",events},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-main-silo.json";a.click();URL.revokeObjectURL(a.href)};
+document.getElementById("siloExport106").onclick=()=>{const blob=new Blob([JSON.stringify({schema:"CUBI111",events},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="cubi-main-silo.json";a.click();URL.revokeObjectURL(a.href)};
 draw();audit().then(x=>document.getElementById("siloReport106").textContent=JSON.stringify(x,null,2));
 })();
