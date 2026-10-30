@@ -112,20 +112,30 @@ async function agent120(){
   if(!latest.length)return;
   const current=latest.map(x=>({registry:x.registry,id:x.id,tick:x.sourceTick,residual:Number(x.residual)||0,spikes:Number(x.spikes)||0}));
   const result=await new Promise((ok,fail)=>{
-   const tx=d.transaction("inheritance117","readwrite"),store=tx.objectStore("inheritance117"),req=store.getAll();let outcome;
-   req.onsuccess=()=>{
-    const records=req.result.filter(x=>x.type==="AGENT_NOVELTY120").sort((a,b)=>a.createdAt-b.createdAt);
-    const last=records.at(-1),old=last?.observations||[];
-    const differences=current.map(x=>{const prev=old.find(y=>y.registry===x.registry);return {registry:x.registry,newSource:!prev,deltaResidual:prev?Math.abs(x.residual-prev.residual):null,deltaSpikes:prev?Math.abs(x.spikes-prev.spikes):null}});
-    const novel=!last||differences.some(x=>x.newSource||x.deltaResidual>=NOVELTY120.residual||x.deltaSpikes>=NOVELTY120.spikes);
-    if(!novel){outcome={status:"STABLE",differences};return}
-    const generation=(last?.generation||0)+1;
-    const value={id:"agent120:"+generation,type:"AGENT_NOVELTY120",generation,parents:last?[last.id]:current.map(x=>x.id),sourceIds:current.map(x=>x.id),observations:current,differences,createdAt:Date.now(),door:"CLOSED",thresholds:NOVELTY120,rule:"observer-only; new measured differences, not new ticks; no quorum"};
-    store.add(value);outcome={status:"NOVEL",id:value.id,generation,differences};
-   };
-   tx.oncomplete=()=>ok(outcome);tx.onerror=()=>fail(tx.error);tx.onabort=()=>fail(tx.error);
+   const tx=d.transaction(["inheritance117","self121"],"readwrite");
+   const inheritance=tx.objectStore("inheritance117"),witness=tx.objectStore("self121");
+   const req=inheritance.getAll(),wr=witness.getAll();
+   let records=null,history=null,outcome=null;
+   function decide(){
+    if(!records||!history)return;
+    const previous=records.filter(x=>x.type==="AGENT_NOVELTY120").sort((a,b)=>a.generation-b.generation).at(-1);
+    const old=previous?.observations||[];
+    const differences=current.map(x=>{const p=old.find(y=>y.registry===x.registry);return {registry:x.registry,newSource:!p,deltaResidual:p?Math.abs(x.residual-p.residual):null,deltaSpikes:p?Math.abs(x.spikes-p.spikes):null}});
+    const novel=!previous||differences.some(x=>x.newSource||x.deltaResidual>=NOVELTY120.residual||x.deltaSpikes>=NOVELTY120.spikes);
+    const seq=(history.at(-1)?.seq||0)+1,prior=history.at(-1);
+    outcome={status:novel?"NOVEL":"STABLE",differences};
+    if(novel){
+     const generation=(previous?.generation||0)+1;
+     const item={id:"agent120:"+generation,type:"AGENT_NOVELTY120",generation,parents:previous?[previous.id]:current.map(x=>x.id),sourceIds:current.map(x=>x.id),observations:current,differences,createdAt:Date.now(),door:"CLOSED",thresholds:NOVELTY120,rule:"model novelty only; no quorum"};
+     inheritance.add(item);outcome.id=item.id;outcome.generation=generation;
+    }
+    witness.add({id:"self121:"+seq,seq,parent:prior?.id||null,decision:outcome.status,decisionId:outcome.id||null,sourceIds:current.map(x=>x.id),reason:differences,policy:{...NOVELTY120},observedAt:Date.now(),door:"CLOSED",atomic122:true});
+   }
+   req.onsuccess=()=>{records=req.result;decide()};
+   wr.onsuccess=()=>{history=wr.result.sort((x,y)=>x.seq-y.seq);decide()};
+   tx.oncomplete=()=>ok(outcome);tx.onerror=()=>fail(tx.error);tx.onabort=()=>fail(tx.error||Error("atomic decision rejected"));
   });
-  AGENT120.cycles++;AGENT120[result.status==="NOVEL"?"novel":"stable"]++;AGENT120.last=result;AGENT120.error=null;await selfObserve121(result,current);
+  AGENT120.cycles++;AGENT120[result.status==="NOVEL"?"novel":"stable"]++;AGENT120.last=result;AGENT120.error=null;
  }catch(e){AGENT120.error=e.message;AGENT120.active=false;document.getElementById("cortexAgent120").textContent="Resume cortex agent"}
  finally{AGENT120.busy=false}
 }
