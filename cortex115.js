@@ -1,7 +1,7 @@
 // CUBI 115 — three observers, one-way diodic door, main cortex.
 (()=>{"use strict";
 const host=document.getElementById("cortex115");if(!host)return;
-host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
+host.innerHTML='<h2>MAIN CORTEX · DIODIC OBSERVER POOL</h2><p>Three observers · one-way doors · no checkpoints · no quorums</p><canvas id="cortexCanvas115" style="width:100%;height:290px;background:#060c18;border:1px solid #28506a;border-radius:10px"></canvas><div class="controls"><button id="cortexObserve115">Observe → pass through</button><button id="cortexAuto116">Pause continuous observation</button><button id="cortexHistory115">Read cortex history</button><button id="cortexInherit117">Inherit closed reports</button><button id="cortexLineage117">Inspect lineage</button><button id="cortexRecurse118">Inherit next generation</button><button id="cortexObserve119">Observe consequence</button><button id="cortexAgent120">Pause cortex agent</button><button id="cortexAgentAudit120">Agent novelty audit</button><button id="cortexExport115">Export cortex history</button></div><pre id="cortexStatus115">Three independent observers ready.</pre>';
 const KEY="cubi.cortex115.v1",OB=[{id:"L",hemisphere:"LH",color:"#438eff",label:"BLUE"},{id:"C",hemisphere:"CH",color:"#41ef99",label:"GREEN"},{id:"R",hemisphere:"RH",color:"#ff586a",label:"RED"}];let dbPromise,working=false,continuous116=true,closed116=0,last116=null;
 function db(){return dbPromise??=new Promise((ok,fail)=>{const r=indexedDB.open(KEY,2);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains("cortex"))r.result.createObjectStore("cortex",{keyPath:"id"});if(!r.result.objectStoreNames.contains("inheritance117"))r.result.createObjectStore("inheritance117",{keyPath:"id"})};r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
 function txRead(d){return new Promise((ok,fail)=>{const t=d.transaction("cortex","readonly"),r=t.objectStore("cortex").getAll();r.onsuccess=()=>ok(r.result);r.onerror=()=>fail(r.error)})}
@@ -75,6 +75,38 @@ async function consequence119(){
  });
 }
 document.getElementById("cortexObserve119").onclick=async()=>{try{show(await consequence119())}catch(e){show({hold:e.message})}};
+// CUBI 120: an autonomous, observation-only novelty agent (not a language model).
+const NOVELTY120={residual:0.0005,spikes:1},AGENT120={active:true,busy:false,cycles:0,novel:0,stable:0,last:null,error:null};
+async function agent120(){
+ if(!AGENT120.active||AGENT120.busy||document.visibilityState==="hidden")return;
+ AGENT120.busy=true;
+ try{
+  const d=await db(),closed=await txRead(d);
+  const latest=["L","C","R"].map(id=>closed.filter(x=>x.registry===id&&x.door==="CLOSED").sort((a,b)=>b.sourceTick-a.sourceTick)[0]).filter(Boolean);
+  if(!latest.length)return;
+  const current=latest.map(x=>({registry:x.registry,id:x.id,tick:x.sourceTick,residual:Number(x.residual)||0,spikes:Number(x.spikes)||0}));
+  const result=await new Promise((ok,fail)=>{
+   const tx=d.transaction("inheritance117","readwrite"),store=tx.objectStore("inheritance117"),req=store.getAll();let outcome;
+   req.onsuccess=()=>{
+    const records=req.result.filter(x=>x.type==="AGENT_NOVELTY120").sort((a,b)=>a.createdAt-b.createdAt);
+    const last=records.at(-1),old=last?.observations||[];
+    const differences=current.map(x=>{const prev=old.find(y=>y.registry===x.registry);return {registry:x.registry,newSource:!prev,deltaResidual:prev?Math.abs(x.residual-prev.residual):null,deltaSpikes:prev?Math.abs(x.spikes-prev.spikes):null}});
+    const novel=!last||differences.some(x=>x.newSource||x.deltaResidual>=NOVELTY120.residual||x.deltaSpikes>=NOVELTY120.spikes);
+    if(!novel){outcome={status:"STABLE",differences};return}
+    const generation=(last?.generation||0)+1;
+    const value={id:"agent120:"+generation,type:"AGENT_NOVELTY120",generation,parents:last?[last.id]:current.map(x=>x.id),sourceIds:current.map(x=>x.id),observations:current,differences,createdAt:Date.now(),door:"CLOSED",thresholds:NOVELTY120,rule:"observer-only; new measured differences, not new ticks; no quorum"};
+    store.add(value);outcome={status:"NOVEL",id:value.id,generation,differences};
+   };
+   tx.oncomplete=()=>ok(outcome);tx.onerror=()=>fail(tx.error);tx.onabort=()=>fail(tx.error);
+  });
+  AGENT120.cycles++;AGENT120[result.status==="NOVEL"?"novel":"stable"]++;AGENT120.last=result;AGENT120.error=null;
+ }catch(e){AGENT120.error=e.message;AGENT120.active=false;document.getElementById("cortexAgent120").textContent="Resume cortex agent"}
+ finally{AGENT120.busy=false}
+}
+document.getElementById("cortexAgent120").onclick=()=>{AGENT120.active=!AGENT120.active;document.getElementById("cortexAgent120").textContent=AGENT120.active?"Pause cortex agent":"Resume cortex agent";show(AGENT120)};
+document.getElementById("cortexAgentAudit120").onclick=()=>show({...AGENT120,thresholds:NOVELTY120,meaning:"Model-only novelty; observations preserved, no voting"});
+async function cycle120(){await agent120();setTimeout(cycle120,1500)}
+setTimeout(cycle120,1500);
 document.getElementById("cortexObserve115").onclick=pass;
 const autoButton116=document.getElementById("cortexAuto116");
 autoButton116.onclick=()=>{continuous116=!continuous116;autoButton116.textContent=continuous116?"Pause continuous observation":"Resume continuous observation";show({continuous:continuous116,closedDoors:closed116,last:last116})};
