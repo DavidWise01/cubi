@@ -1,0 +1,5 @@
+# CUBI 166 — Continuous Toroidal Flow Deformation
+
+Classical analogue only. Let the Planck-scaled reference cell side be a=2*1.61658e-35 m. Contract radius R=r*a continuously, r from 9 to 1, keeping circulation Gamma=f*2*pi*a*c fixed. Then speed fraction beta=v/c=f/r. For 0<=f<1, beta<1 along the entire interval. Ideal dipole equatorial curvature 3/R is finite and increases toward r=1. Classical relativistic kinetic energy per rest energy is gamma_L-1, where gamma_L=1/sqrt(1-beta^2), and increases during the contraction for f>0. Therefore an external energy input is needed if rest mass is constant; the circulation constraint by itself does not imply an isolated energy-conserving system.
+
+The 801-sample `deformation166.js` sweep checks speed, curvature, energy finiteness, and reports three representative points. A finite numerical sample is not proof of every real r, though the analytic bound f/r<=f supplies that result. This remains a phenomenological analogy, not a Maxwell-fluid solution, quantum electron model, or proof of the proposed magnetic force hierarchy. No new Lean files. Browser execution unverified.
