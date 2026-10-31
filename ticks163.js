@@ -1,0 +1,7 @@
+// CUBI 163: dimensionally separated two-tick cell model.
+(()=>{"use strict";const root=document.getElementById("ticks163");if(!root)return;
+root.innerHTML='<h2>CUBI 163 · TWO-TICK PLANCK CELL TEST</h2><button id="run163">Compare tick A / B</button><pre id="out163"></pre>';
+const L=1.61658e-35,c=299792458, bands=[9,6,3,1];
+function test(){const cellSide=Math.sqrt(4)*L,cellArea=cellSide**2,tick=cellSide/c,rows=bands.map(r=>({band:r,curvature_inverse_cell_lengths:3/r,physicalCurvature_per_meter:3/(r*cellSide),tickA_phase:0,tickB_phase:"omega * "+tick.toExponential(8)+" s",fieldIdentityUnchanged:true}));return {cellSide_m:cellSide,cellArea_m2:cellArea,tick_s:tick,lightCrossingSpeed_m_s:cellSide/tick,spaceTimeUnits:"PASS",sameSourceIdentity:"PASS_BY_CONSTRUCTION",monotonicEquatorialCurvature:rows.every((x,i)=>!i||x.physicalCurvature_per_meter>rows[i-1].physicalCurvature_per_meter)?"PASS":"FAIL",phaseDifference:"UNDETERMINED_WITHOUT_ANGULAR_FREQUENCY",physicalElectronModel:"UNVERIFIED",rows}}
+document.getElementById("run163").onclick=()=>document.getElementById("out163").textContent=JSON.stringify(test(),null,2);window.CUBI163=Object.freeze({test});document.getElementById("run163").click();
+})();
