@@ -1,0 +1,32 @@
+name: CUBI time dilation research — 17 layer boundary
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 13 * * *"
+permissions:
+  contents: write
+concurrency:
+  group: cubi-time-dilation-research
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Research 16 layers and audit 17th boundary
+        run: python scripts/time_dilation_research.py
+      - name: Commit appended observations
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add research/time-dilation/observations.jsonl
+          if ! git diff --cached --quiet; then
+            git commit -m "research: append time dilation scholarly observations"
+            git push
+          fi
