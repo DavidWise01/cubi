@@ -15,3 +15,7 @@ Open https://davidwise01.github.io/cubi/ once Pages is enabled. Type an observat
 ## Persistence boundaries
 
 The local browser stores original memories, shadows and process observations in one SHA-256-checked JSON checkpoint. It is not a hosted database, cryptographic authentication, independently anchored chain, or synchronized multi-device service. Deleting site storage deletes local memory; export backups regularly. This model uses the literal theoretical `cubit` symbol and does not implement a hardware qubit.
+
+## JANE gameplay memory bridge
+
+See [JANE MASTER ↔ CUBI90 integration](JANE-CUBI90-INTEGRATION.md) for exporting NES gameplay observations into the nine-register memory checkpoint and promoting L0 → L1 → L2. Import is explicit and **replaces** the current browser-local CUBI checkpoint; export a backup first.
