@@ -1,0 +1,7 @@
+// CUBI 162: ideal Maxwell magnetic dipole, equatorial field-line curvature.
+// Dipole field lines r = L sin²(theta); at theta=pi/2, kappa=3/L.
+(()=>{"use strict";const host=document.getElementById("dipole162");if(!host)return;
+const radii=[9,6,3,1];function test(){const rows=radii.map(r=>({band:r,theta:"pi/2",curvature:3/r,monotonic:"PASS",physicalForceLabel:"UNVERIFIED"}));return {model:"IDEAL_POINT_DIPOLE",fieldLine:"r=L sin²(theta)",equatorialCurvature:"3/L",rows,scalarZero:"SINGULAR_NOT_DEFINED",status:rows.every((x,i)=>i===0||x.curvature>rows[i-1].curvature)?"PASS_AT_EQUATOR":"FAIL",limitations:"Different equatorial field lines; not curvature along a single field line. Not nuclear weak/strong/fission forces; point dipole cannot be extended to r=0."}}
+host.innerHTML='<h2>CUBI 162 · MAXWELL DIPOLE CURVATURE</h2><p>Ideal point dipole, equatorial cross-section: κ=3/r. Separate flux contours, not one radial track.</p><button id="run162">Run Maxwell geometry comparison</button><pre id="out162"></pre>';
+const run=()=>document.getElementById("out162").textContent=JSON.stringify(test(),null,2);document.getElementById("run162").onclick=run;run();window.CUBI162=Object.freeze({test});
+})();
