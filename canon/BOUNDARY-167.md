@@ -1,0 +1,5 @@
+# CUBI 167 — Closed-Cycle Reservoir Exchange
+
+Classical analogy only: contract a modeled flow radius continuously from band 9 to 1, then expand to band 9, holding the shared circulation constant and imposing beta(r)=f/r<1. The relativistic kinetic-energy ratio K(r)/(mc²)=1/sqrt(1-beta²)-1 rises during contraction. Define a separately accounted reservoir E_R(r)=E_total-K(r); thereby E_R+K=E_total by construction. Require E_R>=0 at every step, not only at endpoints. Insufficient initial reservoir is HOLD, not PASS. Return to r=9 restores the starting reservoir in a reversible idealization.
+
+`reservoir167.js` evaluates 801 points along 9→1→9 and reports required initial energy, minimum reservoir, total-energy residual, and recovery. Default f=.5, initial reservoir .20 mc² passes the bookkeeping and restores its initial amount; no heat, dissipative forces, radiation, dynamics of the reservoir or proof of self-sustained motion are included. The reservoir transfer is prescribed, not derived from field equations. This is not an experimentally validated electron model. Existing historical records untouched. No additional Lean files.
