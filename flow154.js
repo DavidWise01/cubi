@@ -1,0 +1,11 @@
+// CUBI 154: fluid-in-container toroidal flow, exploratory software model.
+(()=>{"use strict";
+const host=document.getElementById("flow154");if(!host)return;
+host.innerHTML='<h2>CUBI 154 · FLUID INSIDE / TOROIDAL SHAPE</h2><p>Sphere = containment boundary. Electron analogy = internal moving field. Geometry ≠ experimentally established particle identity.</p><label>Major radius <input id="R154" type="range" min="30" max="90" value="62"></label> <label>Tube radius <input id="r154" type="range" min="8" max="28" value="18"></label> <label>Winding <input id="w154" type="range" min="-5" max="5" value="2"></label><canvas id="canvas154" width="760" height="280" style="max-width:100%;height:auto;background:#070e1c;border:1px solid #24405e"></canvas><pre id="read154"></pre>';
+const canvas=document.getElementById("canvas154"),ctx=canvas.getContext("2d"),read=document.getElementById("read154");
+const inputs=["R154","r154","w154"].map(x=>document.getElementById(x));
+function signature(R,r,w){return {container:"sphere",content:"circulating_field_analogy",shape:"toroid",majorRadius:R,minorRadius:r,twist:w,aspectRatio:+(R/r).toFixed(3),chirality:Math.sign(w),crossingCount:window.CUBI153?.cells?.length||10,classification:"UNASSIGNED_HYPOTHESIS",particleIdentity:"NOT_INFERRED",spin:"NOT_DERIVED",source:"CUBI154_EXPLORATORY"}}
+function draw(){const [R,r,w]=inputs.map(x=>Number(x.value)),cx=380,cy=140;ctx.clearRect(0,0,760,280);ctx.strokeStyle="#3c6681";ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(cx,cy,125,0,2*Math.PI);ctx.stroke();ctx.strokeStyle="#42d7e6";ctx.lineWidth=1.4;for(let j=0;j<12;j++){ctx.beginPath();for(let i=0;i<=360;i++){const t=i*Math.PI/180,p=j*Math.PI/6+w*t/8,rad=R+r*Math.cos(p),x=cx+rad*Math.cos(t),y=cy+0.53*rad*Math.sin(t)+0.48*r*Math.sin(p);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.stroke()}ctx.fillStyle="#e9b65c";ctx.font="13px monospace";ctx.fillText("CONTAINER",20,22);ctx.fillText("INTERNAL FLOW",20,43);read.textContent=JSON.stringify(signature(R,r,w),null,2)}
+for(const x of inputs)x.addEventListener("input",draw);draw();
+window.CUBI154=Object.freeze({signature});
+})();
