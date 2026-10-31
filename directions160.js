@@ -1,0 +1,7 @@
+// CUBI 160: {-+N,-+S,-+E,-+W}^4 paired-flow topology.
+(()=>{"use strict";const el=document.getElementById("directions160");if(!el)return;
+el.innerHTML='<h2>CUBI 160 · {{-+N,-+S,-+E,-+W}}^4</h2><p>Paired polarity per cardinal axis; four repeated rings. This models 16 coupled directional units, not 32 electrons.</p><button id="run160">Test topology and continuity</button><pre id="out160">Awaiting test.</pre>';
+const DIR=["N","S","E","W"],rings=Array.from({length:4},(_,r)=>DIR.map((direction,d)=>({id:"R"+(r+1)+":"+direction,ring:r+1,direction,polarity:["-","+"],sectorIndex:r*4+d+1}))).flat();
+function test(){const ids=new Set(rings.map(x=>x.id)),dual=rings.every(x=>x.polarity.join("")==="-+"),continuity=rings.every((x,i)=>rings[(i+1)%rings.length].sectorIndex===((x.sectorIndex%16)+1)),pairs=rings.length*2;return {notation:"{{-+n,-+s,-+e,-+w}}^4",units:rings.length,polarityEndpoints:pairs,distinctDirections:DIR.length,repeatedRings:4,topologyContinuity:continuity,pairedFlowPreserved:dual,uniqueUnits:ids.size===16,occupancyClaim:"NONE",relationshipTo24:"NOT_YET_SPECIFIED",mappingToSpin:"UNPROVEN",status:dual&&continuity&&ids.size===16?"PASS_SYMBOLIC_TOPOLOGY":"HOLD",rings}}
+document.getElementById("run160").onclick=()=>document.getElementById("out160").textContent=JSON.stringify(test(),null,2);window.CUBI160=Object.freeze({test});
+})();
