@@ -1,0 +1,7 @@
+// CUBI 165: relativistic speed-bound test of classical toroidal analogue.
+(()=>{"use strict";const root=document.getElementById("relativistic165");if(!root)return;
+root.innerHTML='<h2>CUBI 165 · SUBLUMINAL CIRCULATION</h2><p>Γ is classical circulation, not quantum spin. Shared Γ versus per-band Γ.</p><label>Fraction of inner-band speed limit <input id="fraction165" type="range" min="0" max="100" value="50"></label><button id="test165">Run four-band test</button><pre id="out165"></pre>';
+const L=1.61658e-35,c=299792458,base=2*L,radii=[9,6,3,1];
+function test(f){const limitInner=2*Math.PI*base*c,G=f*limitInner,dt=base/c,rows=radii.map(r=>{const radius=r*base,limit=2*Math.PI*radius*c,v=G/(2*Math.PI*radius),individual= f*limit;return {band:r,radius_m:radius,curvature_per_m:3/radius,sharedCirculation_m2_s:G,speedFractionOfC:v/c,sharedPass:v<=c*(1+1e-12),perBandCirculation_m2_s:individual,perBandSpeedFraction:f}});return {fraction:f,lightCrossingSeconds:dt,sharedStatus:rows.every(x=>x.sharedPass)?"PASS":"FAIL",perBandStatus:f<=1?"PASS":"FAIL",sameSharedGamma:"PASS_BY_CONSTRUCTION",samePerBandGamma:"FAIL_IF_RADII_DIFFER",rows,physicalElectronIdentity:"UNVERIFIED",note:"Conventional v=Gamma/(2pi R) applies only to classical circular flow; selecting Gamma by speed bound is not an independent prediction."}}
+function run(){const f=Number(document.getElementById("fraction165").value)/100;document.getElementById("out165").textContent=JSON.stringify(test(f),null,2)}document.getElementById("test165").onclick=run;run();window.CUBI165=Object.freeze({test});
+})();
