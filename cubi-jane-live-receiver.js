@@ -1,0 +1,17 @@
+/* JANE ↔ CUBI live continuity register v1. Requires explicit local approval. */
+(()=>{'use strict';
+const K='JANE_CUBI_CONTINUITY_V1';let peer=null,origin=null,token=null,busy=false,accepted=0;
+const $=id=>document.getElementById(id),show=s=>{if($('janeLiveStatus'))$('janeLiveStatus').textContent=s};
+let heads={};try{heads=JSON.parse(localStorage.getItem('cubi.jane.live.seen.v1')||'{}')}catch{}
+function init(){if($('janeLiveReceiver'))return;const div=document.createElement('section');div.id='janeLiveReceiver';div.className='panel';div.style.cssText='max-width:1400px;margin:14px auto;border:1px solid #eeff34;box-shadow:0 0 20px #eeff3430';div.innerHTML='<h2 style="color:#eeff34">JANE LIVE CONTINUITY REGISTER</h2><p id="janeLiveStatus">Waiting for emulator pairing. Pairing is always approved here.</p><button id="janeLiveAccept" disabled>ACCEPT JANE PAIR</button> <button id="janeLiveDisconnect">DISCONNECT</button><pre id="janeLiveLedger">No received events.</pre>';document.querySelector('main')?.after(div);$('janeLiveAccept').onclick=()=>{if(!peer||!token)return;$('janeLiveAccept').disabled=true;show('PAIRED · awaiting observations');peer.postMessage({kind:K,type:'ACCEPT',token},origin)};$('janeLiveDisconnect').onclick=()=>{peer=null;token=null;origin=null;show('DISCONNECTED')}}
+window.addEventListener('message',async ev=>{const d=ev.data;if(!d||d.kind!==K)return;
+if(d.type==='HELLO'){if(!ev.source||typeof d.token!=='string'||d.token.length<12||d.token.length>128)return;peer=ev.source;origin=ev.origin;token=d.token;init();$('janeLiveAccept').disabled=false;show('PAIR REQUEST: '+(origin==='null'?'local file':origin)+' · click ACCEPT to authorize');return}
+if(ev.source!==peer||ev.origin!==origin||d.token!==token||!peer||d.type!=='EVENT'||busy)return;
+const e=d.event;if(!e||e.kind!=='JaneGameplayObservation'||e.cubit!=='cubit'||!['LH','CH','RH'].includes(e.domain)||!Number.isSafeInteger(e.seq)||e.seq<1||typeof e.session!=='string'||e.session.length>140||typeof e.emulator!=='string'||e.emulator.length>140||JSON.stringify(e).length>12000)return;
+const id=e.session+'|'+e.emulator,prior=Number(heads[id]||0);
+if(e.seq<=prior){peer.postMessage({kind:K,type:'ACK',token,session:e.session,emulator:e.emulator,seq:e.seq,duplicate:true},origin);return}
+if(e.seq!==prior+1){peer.postMessage({kind:K,type:'GAP',token,expected:prior+1},origin);return}
+if(!window.CUBI099?.bind){show('HOLD · CUBI099 memory API unavailable');return}
+busy=true;try{const before=$('seq')?.textContent;await window.CUBI099.bind({tick:e.seq,sourceNode:'jane:'+e.emulator,observation:e,interpretation:'observed emulator event',unknown:'gameplay meaning not necessarily verified'},e.domain);const after=$('seq')?.textContent;if(before===after||!/COMMITTED|VERIFIED/.test($('status')?.textContent||''))throw Error('CUBI checkpoint did not advance');heads[id]=e.seq;localStorage.setItem('cubi.jane.live.seen.v1',JSON.stringify(heads));accepted++;$('janeLiveLedger').textContent='Accepted '+accepted+' events\n'+id+' #'+e.seq+' '+e.domain+' '+e.event+'\nCUBI checkpoint seq '+after;show('LIVE · '+accepted+' accepted');peer.postMessage({kind:K,type:'ACK',token,session:e.session,emulator:e.emulator,seq:e.seq},origin)}catch(err){show('HOLD · '+err.message)}finally{busy=false}
+});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
