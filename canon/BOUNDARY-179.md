@@ -1,0 +1,7 @@
+# CUBI 179 — Finite-source pulse and central energy observation
+
+The user's 26-cell punctuation interface is modeled as a 1D scalar wave stack, with dot n=1 and bar n=1.5, each layer 12 dimensionless spatial steps. A finite Gaussian-envelope sinusoidal source is turned off after step 180. The field evolves for 2400 discrete steps using a scalar finite-difference wave equation with Courant-like step dt=.25, dx=1; spatial dielectric coefficient n². Record central two-cell energy and total numerical energy every 100 steps, including post-shutoff response. Source `pulse179.js`.
+
+**Crucial physical limitation:** outer simulation box boundaries use simple reflection, not absorbing radiation or an open-system boundary. Thus global energy persisting after the drive is off does not mean the central structure trapped light; it could simply be retained in the numerical box. The simulated time and distance are dimensionless and do not claim Planck-time propagation or literal electron properties. The pulse energy is injected by a numerical source rather than a fully Maxwell-consistent charge/current. Numerical energy estimates use finite differences and are diagnostics, not an exact field conservation theorem.
+
+Scientific outcome: executable algorithm committed; real cavity dwell time, Q, external leakage and physical confinement are NOT VERIFIED. The next boundary is absorbing walls plus an empty-stack control and fitted central-energy decay, with a convergence test. No new Lean files. Browser runtime not independently verified.
