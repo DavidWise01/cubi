@@ -1,0 +1,15 @@
+// CUBI178: independent reflection, layer-integrated harmonic energy, delay proxy.
+(()=>{"use strict";const root=document.getElementById("integral178");if(!root)return;const symbols="..||..|...||"+"||"+"||...|..||..";
+const z=(a=0,b=0)=>[a,b],sum=(a,b)=>z(a[0]+b[0],a[1]+b[1]),dif=(a,b)=>z(a[0]-b[0],a[1]-b[1]),mul=(a,b)=>z(a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]),sc=(a,k)=>z(a[0]*k,a[1]*k),abs2=a=>a[0]*a[0]+a[1]*a[1],divide=(a,b)=>sc(mul(a,z(b[0],-b[1])),1/abs2(b));
+function solve(lambda=4,indexBar=1.5){if(!(lambda>0&&indexBar>0))throw Error("invalid wavelength/index");const ns=[...symbols].map(s=>s==="."?1:indexBar),states=[],step=2*Math.PI/lambda,mat=[[z(1),z(0)],[z(0),z(1)]];
+function times(A,B){return [[sum(mul(A[0][0],B[0][0]),mul(A[0][1],B[1][0])),sum(mul(A[0][0],B[0][1]),mul(A[0][1],B[1][1]))],[sum(mul(A[1][0],B[0][0]),mul(A[1][1],B[1][0])),sum(mul(A[1][0],B[0][1]),mul(A[1][1],B[1][1]))]]}
+let M=mat;for(let n of ns){let p=step*n;M=times(M,[[z(Math.cos(p)),z(0,Math.sin(p)/n)],[z(0,n*Math.sin(p)),z(Math.cos(p))]])}
+const [A,B]=M[0],[C,D]=M[1],den=sum(sum(A,B),sum(C,D)),t=divide(z(2),den),r=divide(dif(sum(A,B),sum(C,D)),den),T=abs2(t),R=abs2(r);
+let E=t,H=t;const layers=Array(ns.length);
+for(let i=ns.length-1;i>=0;i--){let n=ns[i],p=step*n,er=0;const downstreamE=E,downstreamH=H;
+// Midpoint-rule integration with 32 subdivisions, propagating backwards from right layer boundary.
+for(let j=0;j<32;j++){const phi=p*(j+.5)/32,ex=sum(sc(downstreamE,Math.cos(phi)),mul(z(0,Math.sin(phi)/n),downstreamH)),hx=sum(mul(z(0,n*Math.sin(phi)),downstreamE),sc(downstreamH,Math.cos(phi)));er+=.5*(n*n*abs2(ex)+abs2(hx))/32}
+layers[i]=er;E=sum(sc(downstreamE,Math.cos(p)),mul(z(0,Math.sin(p)/n),downstreamH));H=sum(mul(z(0,n*Math.sin(p)),downstreamE),sc(downstreamH,Math.cos(p)))}
+const total=layers.reduce((a,b)=>a+b,0),central=layers[12]+layers[13],baseline=2*(total-central)/24;return {wavelength:lambda,independentReflectance:R,independentTransmittance:T,energyResidual:Math.abs(R+T-1),independentConservation:Math.abs(R+T-1)<1e-8,integratedNormalizedEnergy:total,centralTwoCellEnergy:central,centerVsEqualWidthOthers:central/baseline,centralFraction:central/total,centralEnhanced:central>baseline,timeDwell:"UNDETERMINED_REQUIRES_REAL_LENGTH_AND_GROUP_VELOCITY",storedEnergy:"RELATIVE_STEADY_STATE_NOT_TRANSIENT_DECAY",layerEnergy:layers}}
+root.innerHTML='<h2>CUBI 178 · FIELD-ENERGY INTEGRAL</h2><p>Independent reflection/transmission, 32-point-per-layer integration, central || comparison.</p><label>Wavelength <input id="wave178" type="number" value="4" min=".01" step=".25"></label><button id="run178">Execute energy boundary</button><pre id="out178"></pre>';function run(){try{document.getElementById("out178").textContent=JSON.stringify(solve(+document.getElementById("wave178").value),null,2)}catch(e){document.getElementById("out178").textContent="HOLD "+e.message}}document.getElementById("run178").onclick=run;run();window.CUBI178=Object.freeze({solve});
+})();
