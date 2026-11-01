@@ -1,0 +1,30 @@
+{
+  "kernel": 135,
+  "active": true,
+  "anchor": "000",
+  "legs": [
+    "OUT",
+    "LEFT",
+    "RIGHT",
+    "UP",
+    "DOWN",
+    "HOME"
+  ],
+  "symbolic_steps_per_leg": "24!",
+  "actual_factorial": "620448401733239439360000",
+  "render_steps_per_leg": 24,
+  "gravity": "adjustable curved model trajectories",
+  "closure": "exact by construction",
+  "registry": 366,
+  "toroid": [
+    24,
+    12,
+    4,
+    3,
+    3,
+    1,
+    1
+  ],
+  "predecessor": 134,
+  "history": "preserved"
+}
