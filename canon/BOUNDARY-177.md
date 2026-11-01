@@ -1,0 +1,7 @@
+# CUBI 177 — Central Energy Localization
+
+Using the existing CUBI175 arbitrary-index, lossless 26-cell optical stack, calculate frequency-domain complex E,H amplitudes through the layers (index n(dot)=1 and n(bar)=1.5, equal geometric thickness, incident background n=1). The central boundary is cells 13 and 14 (`||`). A normal-incidence transfer matrix is multiplied to compute transmission; the transmitted-side fields are back-propagated to the input. Sample each layer at its midpoint and compute the **normalized energy density proxy** `0.5*(n^2*|E|^2+|H|^2)`. Compare mean central value against the other 24 cells.
+
+This proxy is meaningful for an illustrative dispersionless, nonmagnetic, nondissipative dielectric with consistent normalized E,H definitions. It is **not** total stored energy, because energy requires thickness integration and physical constants; it is not dwell time, photon trapping, quantum gravity, nor proof of an electron configuration. A maximum at the center is an empirical outcome of selected wavelength and indices, not guaranteed by palindrome symmetry. The model currently reports `transmission` and `reflection=1-T` (the latter **by conservation assumption**); thus conservation is not an independent check. Future improvements should compute r from complex incident/reflected fields and integrate time-domain energy and leakage, test sensitivity to parameters.
+
+Source `localization177.js`. No new Lean. Browser runtime unverified.
