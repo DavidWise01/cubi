@@ -1,0 +1,7 @@
+# CUBI 174 — Gravity Push / Void Pull Boundary Test
+
+User's proposed alternative regime (not conventional gravity): gravity pushes outward and void pulls inward, across a bubble boundary. Write a dimensionless radial force/acceleration F(x)=G(x)-V(x), outward positive. At x0=1 require G(x0)=V(x0)=1 for equilibrium. Linearize G=1+g'(x-x0), V=1+v'(x-x0). Then F=(g'-v')(x-x0), and stability under x''=F is **stable** for g'-v'<0 (restoring), **unstable** for g'-v'>0, and **neutral** for equality. For a stable configuration the eigenvalues are ±i sqrt(v'-g') and perturbations oscillate in this ideal undamped model. A zero net force without a negative slope is not sufficient for stability.
+
+Default example g'=-0.7, v'=+0.3 gives F=-(x-1), and exact small displacement 0.05 gives x(t)-1=0.05 cos(t); nonzero amplitude persists, no damping. Reversed slopes g'=+0.7, v'=-0.3 give F=+(x-1) and perturbation grows as cosh(t). Neutral slopes give constant offset. `boundary174.js` executes velocity-Verlet for 2000 steps of 0.01 dimensionless time units; includes energy drift diagnostic and parameter controls.
+
+No gravitational field equation, metric, stress-energy, exterior-universe boundary, or electromagnetic dispersion relation has yet been established. No claims of literal void pull, FTL transit, quantum gravity or photon confinement admitted. This tests mathematical stability of a deliberately specified toy restoring law only. Browser execution unverified. No new Lean files.
