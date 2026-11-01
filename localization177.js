@@ -1,0 +1,15 @@
+// CUBI177 exact 1D lossless stack: E,H complex amplitudes and layer energy proxy.
+(()=>{"use strict";
+const root=document.getElementById("localization177");if(!root)return;
+const pattern="..||..|...||"+"||"+"||...|..||..";
+const C=(re,im=0)=>[re,im],add=(a,b)=>[a[0]+b[0],a[1]+b[1]],sub=(a,b)=>[a[0]-b[0],a[1]-b[1]],mul=(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]],div=(a,b)=>mul(a,[b[0]/(b[0]*b[0]+b[1]*b[1]),-b[1]/(b[0]*b[0]+b[1]*b[1])]),norm=a=>a[0]*a[0]+a[1]*a[1];
+function test(lambda=4,nBar=1.5){if(!(lambda>0&&nBar>0))throw Error("Invalid parameters");const layers=[...pattern].map(s=>s==="."?1:nBar);let M=[[C(1),C(0)],[C(0),C(1)]];
+const dot=(A,B)=>[[add(mul(A[0][0],B[0][0]),mul(A[0][1],B[1][0])),add(mul(A[0][0],B[0][1]),mul(A[0][1],B[1][1]))],[add(mul(A[1][0],B[0][0]),mul(A[1][1],B[1][0])),add(mul(A[1][0],B[0][1]),mul(A[1][1],B[1][1]))]];
+for(const n of layers){const p=2*Math.PI*n/lambda,co=Math.cos(p),si=Math.sin(p);M=dot(M,[[C(co),C(0,si/n)],[C(0,si*n),C(co)]])}
+const [A,B]=M[0],[D,E]=M[1],den=add(add(A,B),add(D,E)),t=div(C(2),den),R=1-norm(t);
+let ef=t,hf=t;const energy=[];
+for(let i=layers.length-1;i>=0;i--){const n=layers[i],p=2*Math.PI*n/lambda;const co=Math.cos(p),si=Math.sin(p);const e=add(mul(C(co),ef),mul(C(0,si/n),hf)),h=add(mul(C(0,si*n),ef),mul(C(co),hf));const midp=p/2,em=add(mul(C(Math.cos(midp)),ef),mul(C(0,Math.sin(midp)/n),hf)),hm=add(mul(C(0,n*Math.sin(midp)),ef),mul(C(Math.cos(midp)),hf));energy[i]={layer:i+1,symbol:pattern[i],index:n,relativeEnergy:.5*(n*n*norm(em)+norm(hm)),electric:n*n*norm(em),magnetic:norm(hm)};ef=e;hf=h}
+const central=(energy[12].relativeEnergy+energy[13].relativeEnergy)/2,mean=energy.reduce((a,b)=>a+b.relativeEnergy,0)/energy.length,other=(energy.reduce((a,b)=>a+b.relativeEnergy,0)-energy[12].relativeEnergy-energy[13].relativeEnergy)/24;return {lambda,transmission:norm(t),reflection:R,conservationResidual:Math.abs(norm(t)+R-1),centralEnergy:central,meanEnergy:mean,centralToOthers:central/other,localization:central>other?"CENTER_ENHANCED":"NOT_CENTER_ENHANCED",energy,units:"normalized field-energy density, not joules",temporalStorage:"NOT_DERIVED",note:"Field-magnitude proxy computed from the transfer-matrix solution; interface convention/model must be independently verified."}}
+root.innerHTML='<h2>CUBI 177 · CENTRAL FIELD LOCALIZATION</h2><p>26-cell wave stack; central cells 13–14 are the || boundary</p><label>Wavelength <input id="lambda177" type="number" value="4" min=".01" step=".25"></label><button id="run177">Calculate energy profile</button><pre id="out177"></pre>';
+function run(){try{document.getElementById("out177").textContent=JSON.stringify(test(+document.getElementById("lambda177").value),null,2)}catch(e){document.getElementById("out177").textContent="HOLD: "+e.message}}document.getElementById("run177").onclick=run;run();window.CUBI177=Object.freeze({test});
+})();
